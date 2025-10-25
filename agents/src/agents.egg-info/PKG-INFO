@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: agents
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: elasticsearch>=9.1.1
+Requires-Dist: fastapi[standard]>=0.120.0
+Requires-Dist: langchain>=1.0.2
+Requires-Dist: langchain-community>=0.4
+Requires-Dist: langchain-perplexity>=1.0.0
+Requires-Dist: python-dotenv>=1.1.1
+Requires-Dist: unstructured[pdf]>=0.18.15
