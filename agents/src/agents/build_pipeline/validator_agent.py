@@ -2,8 +2,9 @@ from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.tools import tool
 from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel, Field
-from typing import List, Optional, Tuple
+from langchain_anthropic import ChatAnthropic
+from langchain.agents.structured_output import ToolStrategy
+from typing import List
 import json
 import requests
 import os
@@ -11,7 +12,7 @@ import sympy as sp
 from sympy import solve, simplify
 from sympy.parsing.sympy_parser import parse_expr
 
-from agents.models.question import Question
+from agents.models.question import QuestionList
 from agents.models.search import SearchRequest
 
 load_dotenv()
@@ -110,14 +111,18 @@ class ValidatorAgent:
     def __init__(self):
         self.wolfram_app_id = os.getenv("WOLFRAM_APP_ID")
 
+        model = ChatAnthropic(
+            model="claude-sonnet-4-5",
+        )
+        
         self.agent = create_agent(
-            "openai:gpt-5-mini",
+            model,
             tools=[
                 solve_equation_tool,
                 query_wolfram_alpha_tool,
                 simplify_expression_tool,
             ],
-            response_format=List[Question]
+            response_format=ToolStrategy(QuestionList)
         )
         
         self.system = """
@@ -127,6 +132,8 @@ class ValidatorAgent:
             Use mathematical tools to verify answers when applicable
             Ensure questions meet quality standards and schema requirements
             Return validated questions in the specified format
+
+            Note: FIB stands for Fill-in-the blank, requires the blank be somewhere inside the sentence.
 
             You have access to powerful mathematical and scientific tools:
             - SymPy tools for symbolic mathematics (solve_equation_tool, simplify_expression_tool)
@@ -144,22 +151,13 @@ class ValidatorAgent:
             ("human", self.human)
         ])
         
-        self.agent = create_agent(
-            "openai:gpt-5-mini",
-            tools=[
-                query_wolfram_alpha_tool,
-                simplify_expression_tool,
-                solve_equation_tool,
-            ],
-            response_format=List[Question]
-        )
     
     
     def validate_questions(
         self, 
         search_request: SearchRequest, 
         scrape_output: List[str], 
-    ) -> List[Question]:
+    ) -> QuestionList:
         try:
             prompt_text = f"""
             User initial query: {search_request.model_dump()}
@@ -167,13 +165,13 @@ class ValidatorAgent:
             Raw Questions Data:
             {json.dumps(scrape_output, indent=2)}
             
-            Return the results in the List[Question] format with {search_request.num_questions_range} questions.
+            Return the results in the QuestionList format with {search_request.num_questions_range} questions.
             """
             
             print("🤖 Starting validation process with streaming...")
             print("=" * 60)
             
-            final_result = None
+            questions = None
             
             for chunk in self.agent.stream(
                 {"messages": [{"role": "user", "content": prompt_text}]},
@@ -203,33 +201,22 @@ class ValidatorAgent:
                                     print(f"   📝 Text: {content[:200]}{'...' if len(content) > 200 else ''}")
                         print("-" * 40)
                     
-                    # Store final result
-                    if 'messages' in data and data['messages']:
-                        final_result = data['messages'][-1]
+                    if 'structured_response' in data:
+                        questions = data['structured_response']
             
             print("✅ Streaming completed!")
             print("=" * 60)
             
-            # Extract the validated questions from the final result
-            if final_result and hasattr(final_result, 'content_blocks') and final_result.content_blocks:
-                for block in final_result.content_blocks:
-                    if block.get('type') == 'text':
-                        try:
-                            # Try to parse as ValidatedQuestions
-                            questions = json.loads(block.get('text'))
-                            
-                            return [Question(**q) for q in questions]
-                        except (json.JSONDecodeError, ValueError) as e:
-                            print(f"❌ Error parsing agent response: {e}")
-                            continue
+            if questions:
+                return questions
             
             # Fallback: return empty result
             print("⚠️ No valid response found, returning empty result")
-            return []
+            return QuestionList(questions=[])
             
         except Exception as e:
             print(f"❌ Error in agent validation: {e}")
-            return []
+            return QuestionList(questions=[])
 
 def main():
     sample_scrape_output = [
@@ -262,11 +249,17 @@ def main():
     print("Initializing ValidatorAgent...")
     validator = ValidatorAgent()
     
+    search_request = SearchRequest(
+        subject="Biology",
+        topic="DNA replication",
+        num_questions_range=(2, 4),
+        mode="practice"
+    )
+    
     print("Using LangChain agent to validate questions...")
     validated_questions = validator.validate_questions(
-        instruction="Biology DNA replication practice questions", 
-        scrape_output=sample_scrape_output,
-        target_count=2
+        search_request=search_request, 
+        scrape_output=sample_scrape_output
     )
     
 

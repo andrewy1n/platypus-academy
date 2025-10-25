@@ -23,6 +23,10 @@ class FIB(BaseModel):
     type: Literal["fib"]
     answer: str
 
+class ShortAnswer(BaseModel):
+    type: Literal["short_answer"]
+    answer: str
+
 class Matching(BaseModel):
     type: Literal["matching"]
     left: List[str]
@@ -41,8 +45,7 @@ class FR(BaseModel):
     rubric: str
 
 class Question(BaseModel):
-    id: str = Field(description="Unique identifier for the question")
-    data: MCQ | TF | Numeric | FIB | Matching | Ordering | FR
+    data: MCQ | TF | Numeric | FIB | ShortAnswer | Matching | Ordering | FR
     text: str = Field(description="The question text")
     subject: Subject = Field(description="The subject of the question")
     topic: str = Field(description="The topic of the question")
@@ -58,7 +61,7 @@ class Question(BaseModel):
         md = dict(self.metadata)
         if self.source_url and "source_domain" not in md:
             md["source_domain"] = urlparse(self.source_url).netloc
-        md.setdefault("type", self.type)
+        md.setdefault("type", self.data.type)
         md.setdefault("difficulty", self.difficulty)
         md.setdefault("subject", None)
         md.setdefault("topic", None)
@@ -69,6 +72,20 @@ class Question(BaseModel):
         self.metadata = md
         return self
 
+class QuestionList(BaseModel):
+    questions: List[Question]
+    
 class FRGrade(BaseModel):
     score: int
     explanation: str
+
+class GradeRequest(BaseModel):
+    question: Question
+    student_answer: str
+
+class GradeResponse(BaseModel):
+    status: str
+    step: str
+    message: str
+    data: Optional[dict] = None
+    error: Optional[str] = None

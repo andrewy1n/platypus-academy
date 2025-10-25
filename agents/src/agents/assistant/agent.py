@@ -1,19 +1,17 @@
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.tools import tool
-from langchain_core.prompts import ChatPromptTemplate
-import json
 import requests
 import os
 import sympy as sp
 from sympy import solve, simplify
 from sympy.parsing.sympy_parser import parse_expr
 import asyncio
+import concurrent.futures
 from queue import Queue
 from threading import Thread
 
-from agents.models.question import FR, FRGrade, Question
-from agents.models.search import SearchRequest
+from agents.models.question import FR
 
 load_dotenv()
 
@@ -107,15 +105,23 @@ def query_wolfram_alpha_tool(query: str) -> str:
     except Exception as e:
         return f"Unexpected error: {str(e)}"
 
-class FreeResponseGraderAgent:
+class AssistantAgent:
     def __init__(self):
         self.wolfram_app_id = os.getenv("WOLFRAM_APP_ID")
+
+        self.agent = create_agent(
+            "anthropic:claude-sonnet-4-5",
+            tools=[
+                solve_equation_tool,
+                query_wolfram_alpha_tool,
+                simplify_expression_tool,
+            ],
+        )
         
         self.system = """
-            You are a specialized free response grading agent. Your job is to:
-            
-            Grade a free response question based on the given rubric, example answer, and student's answer.
-            Scores must be in integers between 0 and the given total points for the question.
+            You are a specialized assistant agent. Your job is to:
+
+            Help the user with their question or problem.
 
             You have access to powerful mathematical and scientific tools:
             - SymPy tools for symbolic mathematics (solve_equation_tool, simplify_expression_tool)
@@ -126,33 +132,20 @@ class FreeResponseGraderAgent:
             Always validate mathematical expressions and check answer correctness when possible.
             For scientific questions, use Wolfram|Alpha to verify facts and calculations.
         """
-        
-        self.agent = create_agent(
-            "openai:gpt-5-mini",
-            tools=[
-                query_wolfram_alpha_tool,
-                simplify_expression_tool,
-                solve_equation_tool,
-            ],
-            response_format=FRGrade
-        )
     
     
-    async def grade_free_response(
+    async def generate_response(
         self, 
-        question: FR,
-        student_answer: str,
+        query: str
     ):
         try:
             prompt_text = f"""
-            Question: {question.model_dump()}
+            Query: {query}
 
-            Student Answer: {student_answer}
-
-            Return the results in the FRGrade format.
+            Return the response to the user's query.
             """
             
-            graded_fr = None
+            final_message = None
             queue = Queue()
             sentinel = object()
             
@@ -183,7 +176,7 @@ class FreeResponseGraderAgent:
                     if isinstance(item, tuple) and item[0] == 'error':
                         yield {
                             'type': 'error',
-                            'message': f"Error in grading: {str(item[1])}"
+                            'message': f"Error in stream: {str(item[1])}"
                         }
                         break
                     
@@ -191,6 +184,7 @@ class FreeResponseGraderAgent:
                     for step, data in chunk.items():
                         if 'messages' in data and data['messages']:
                             message = data['messages'][-1]
+                            final_message = message
                             
                             if hasattr(message, 'tool_calls') and message.tool_calls:
                                 for tool_call in message.tool_calls:
@@ -200,31 +194,28 @@ class FreeResponseGraderAgent:
                                         'args': tool_call['args'],
                                         'id': tool_call['id']
                                     }
-                        
-                        if 'structured_response' in data:
-                            graded_fr = data['structured_response']
             
-            if graded_fr:
+            if final_message:
                 yield {
                     'type': 'final_response',
-                    'data': graded_fr
+                    'content': final_message.content
                 }
             else:
                 yield {
                     'type': 'error',
-                    'message': 'No valid grading response generated'
+                    'message': 'No response generated'
                 }
-            
+
         except Exception as e:
             yield {
                 'type': 'error',
-                'message': f"Error grading response: {str(e)}"
+                'message': f"Error generating response: {str(e)}"
             }
 
 def main():
     print("🤖 Initializing FreeResponseGraderAgent...")
-    grader = FreeResponseGraderAgent()
-    print("✅ FreeResponseGraderAgent initialized successfully")
+    grader = AssistantAgent()
+    print("✅ AssistantAgent initialized successfully")
     
     # Test case 1: Math problem
     print("\n" + "="*60)

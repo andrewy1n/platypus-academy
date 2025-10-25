@@ -1,10 +1,16 @@
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.tools import tool
-from pydantic import BaseModel, HttpUrl
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_perplexity import ChatPerplexity
 import json
+from langchain_anthropic import ChatAnthropic
+from langchain.agents.structured_output import ToolStrategy
+import asyncio
+from queue import Queue
+from threading import Thread
+
+from agents.models.search import SearchRequest, SearchResults, SearchResult
 
 load_dotenv()
 
@@ -37,17 +43,10 @@ Return your answer in machine readable JSON format.
         
     except Exception as e:
         return f"Error searching with Perplexity: {str(e)}"
-
-class SearchResult(BaseModel):
-    url: HttpUrl
-    title: str
-    snippet: str
-
-class SearchResults(BaseModel):
-    search_results: list[SearchResult]
+    
 
 class SearchAgent:
-    def __init__(self, temperature=1, model="sonar", agent_model="openai:gpt-5-mini"):
+    def __init__(self, temperature=1, model="sonar"):
         """
         Initialize the SearchAgent with Perplexity and LangChain agent.
         
@@ -58,7 +57,6 @@ class SearchAgent:
         """
         self.temperature = temperature
         self.model = model
-        self.agent_model = agent_model
         
         self.chat = ChatPerplexity(temperature=temperature, model=model)
         
@@ -90,82 +88,90 @@ class SearchAgent:
                 - Saylor Academy
             Return your answer in machine readable JSON format.
         """
+
+        model = ChatAnthropic(
+            model="claude-sonnet-4-5",
+        )
         self.agent = create_agent(
-            agent_model,
+            model,
             tools=[search_perplexity_tool],
             system_prompt=self.system_prompt,
-            response_format=SearchResults  
+            response_format=ToolStrategy(SearchResults)  
         )
     
     
-    def invoke(self, query: str) -> SearchResults:
+    async def invoke(self, search_request: SearchRequest):
         try:
-            print("🔍 Starting search process with streaming...")
-            print("=" * 60)
-            print(f"📝 Query: {query}")
-            print("=" * 60)
+            query = f"Find URLs to {search_request.subject} {search_request.topic} textbooks with practice questions, return your answer in JSON format. Prefer website links over pdf links."
             
-            # Use streaming to see tool calls in real-time
-            final_result = None
+            search_results = None
+            queue = Queue()
+            sentinel = object()
             
-            for chunk in self.agent.stream(
-                {"messages": [{"role": "user", "content": query}]},
-                stream_mode="updates",
-            ):
-                for step, data in chunk.items():
-                    print(f"📊 Step: {step}")
+            def _stream_agent():
+                try:
+                    for chunk in self.agent.stream(
+                        {"messages": [{"role": "user", "content": query}]},
+                        stream_mode="updates",
+                    ):
+                        queue.put(chunk)
+                except Exception as e:
+                    queue.put(('error', e))
+                finally:
+                    queue.put(sentinel)
+            
+            thread = Thread(target=_stream_agent, daemon=True)
+            thread.start()
+            
+            while True:
+                await asyncio.sleep(0.01)
+                
+                if not queue.empty():
+                    item = queue.get()
                     
-                    # Show tool calls
-                    if 'messages' in data and data['messages']:
-                        message = data['messages'][-1]
-                        if hasattr(message, 'tool_calls') and message.tool_calls:
-                            print("🔧 Tool Calls:")
-                            for tool_call in message.tool_calls:
-                                print(f"   📞 Tool: {tool_call['name']}")
-                                print(f"   📝 Args: {tool_call['args']}")
-                                print(f"   🆔 ID: {tool_call['id']}")
-                                print("-" * 40)
+                    if item is sentinel:
+                        break
                     
-                    # Show content blocks
-                    if hasattr(message, 'content_blocks') and message.content_blocks:
-                        print("📄 Content Blocks:")
-                        for block in message.content_blocks:
-                            if block.get('type') == 'text':
-                                content = block.get('text', '')
-                                if content:
-                                    print(f"   📝 Text: {content[:200]}{'...' if len(content) > 200 else ''}")
-                        print("-" * 40)
+                    if isinstance(item, tuple) and item[0] == 'error':
+                        yield {
+                            'type': 'error',
+                            'message': f"Error in search: {str(item[1])}"
+                        }
+                        break
                     
-                    # Store final result
-                    if 'messages' in data and data['messages']:
-                        final_result = data['messages'][-1]
+                    chunk = item
+                    for step, data in chunk.items():
+                        if 'messages' in data and data['messages']:
+                            message = data['messages'][-1]
+                            
+                            if hasattr(message, 'tool_calls') and message.tool_calls:
+                                for tool_call in message.tool_calls:
+                                    yield {
+                                        'type': 'tool_call',
+                                        'tool': tool_call['name'],
+                                        'args': tool_call['args'],
+                                        'id': tool_call['id']
+                                    }
+                        
+                        if 'structured_response' in data:
+                            search_results = data['structured_response']
             
-            print("✅ Streaming completed!")
-            print("=" * 60)
-            
-            # Extract the search results from the final result
-            if final_result and hasattr(final_result, 'content_blocks') and final_result.content_blocks:
-                for block in final_result.content_blocks:
-                    if block.get('type') == 'text':
-                        json_text = block.get('text')
-                        if json_text:
-                            try:
-                                print("🔍 Parsing search results...")
-                                parsed_data = json.loads(json_text)
-                                search_results_data = parsed_data.get('search_results', [])
-                                search_results = [SearchResult(**result_data) for result_data in search_results_data]
-                                print(f"✅ Found {len(search_results)} search results")
-                                return SearchResults(search_results=search_results)
-                            except (json.JSONDecodeError, ValueError) as e:
-                                print(f"❌ Error parsing JSON: {e}")
-                                return SearchResults(search_results=[])
-            
-            print("⚠️ No valid search results found")
-            return SearchResults(search_results=[])
+            if search_results:
+                yield {
+                    'type': 'final_response',
+                    'data': search_results
+                }
+            else:
+                yield {
+                    'type': 'final_response',
+                    'data': SearchResults(search_results=[])
+                }
             
         except Exception as e:
-            print(f"❌ Error during search: {e}")
-            return SearchResults(search_results=[])
+            yield {
+                'type': 'error',
+                'message': f"Error during search: {str(e)}"
+            }
     
     def print_results(self, results: SearchResults):
         print("\n📋 SEARCH RESULTS SUMMARY")
@@ -193,13 +199,18 @@ def main():
     print("=" * 60)
     
     # Test query
-    test_query = "Find 5 URL links to biology DNA replication textbooks with practice questions, return your answer in JSON format. Prefer website links over pdf links."
+    test_query = "Find URLs to biology DNA replication textbooks with practice questions, return your answer in JSON format. Prefer website links over pdf links."
     
     print("🔍 Starting search process...")
     print("=" * 60)
     
     # Perform search with streaming
-    results = search_agent.invoke(test_query)
+    results = search_agent.invoke(SearchRequest(
+        subject="Biology",
+        topic="DNA replication",
+        num_questions_range=(2, 4),
+        mode="practice"
+    ))
     
     # Print results
     search_agent.print_results(results)

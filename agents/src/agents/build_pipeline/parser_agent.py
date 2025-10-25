@@ -11,12 +11,9 @@ from unstructured.chunking.title import chunk_by_title
 from unstructured.documents.elements import Element
 from unstructured.partition.auto import partition
 
-load_dotenv()
+from agents.models.search import SearchResult
 
-class SearchResult(BaseModel):
-    url: HttpUrl
-    title: str
-    snippet: str
+load_dotenv()
 
 class ParserAgent:
     def __init__(self):
