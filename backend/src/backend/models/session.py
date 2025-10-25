@@ -6,7 +6,7 @@ from ..models.question import Subject
 class Session(BaseModel):
     id: str
     subject: Subject
-    topic: str
+    topics: List[str]
     questions: List[str] # question ids
     num_questions: int
     num_questions_answered: int

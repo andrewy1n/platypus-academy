@@ -240,7 +240,7 @@ class ChromaDBClient:
                 }]
             )
 
-    def update_question_answer(self, question_id: str, student_answer: str) -> None:
+    def update_question_answer(self, question_id: str, student_answer) -> None:
         question_data = self.get_question(question_id)
         if question_data:
             question_data["student_answer"] = student_answer

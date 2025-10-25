@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class AssistantRequest(BaseModel):
     query: str
+    thread_id: str
 
 class AssistantResponse(BaseModel):
     status: str

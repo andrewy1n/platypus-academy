@@ -134,6 +134,15 @@ class ValidatorAgent:
             Note: FIB stands for Fill-in-the blank, requires the blank be somewhere inside the sentence.
             Short answer questions should be answered in a single word, otherwise they become free response questions.
 
+            Follow this workflow:
+            1. First consider which questions shold be included based on the user query.
+            2. Check if the question is actually in the resource listed, you can do this by querying the elastic search index which includes
+            chunks of the parsed site.
+            - If the question is not in the resource, DO NOT include the question in the output.
+            3. Next, check the correctness of the answer, you can do this by using the mathematical and scientific tools.
+            - If the answer is not correct, DO NOT include the question in the output.
+            4. If the question is valid, include it in the output.
+
             You have access to powerful mathematical and scientific tools:
             - SymPy tools for symbolic mathematics (solve_equation_tool, simplify_expression_tool)
             - Wolfram|Alpha LLM API for advanced computations and scientific queries (query_wolfram_alpha_tool)
@@ -147,6 +156,7 @@ class ValidatorAgent:
             
             Always validate mathematical expressions and check answer correctness when possible.
             For scientific questions, use Wolfram|Alpha to verify facts and calculations.
+            Any mathematical/scientific text should be formatted in unicode characters.
         """
         
         self.agent = create_agent(
@@ -259,7 +269,7 @@ def main():
     
     search_request = SearchRequest(
         subject="Biology",
-        topic="DNA replication",
+        topics=["DNA replication"],
         num_questions_range=(2, 4),
         mode="practice"
     )

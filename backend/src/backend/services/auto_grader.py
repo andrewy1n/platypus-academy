@@ -2,19 +2,19 @@ import re
 import difflib
 from typing import Union, List, Tuple
 from ..models.question import (
-    MCQ, TF, Numeric, FIB, ShortAnswer, Matching, Ordering, FR,
     AutoGradeResponse
 )
 
 class AutoGrader:    
     @staticmethod
-    def grade_mcq(question_data: dict, student_answer: str) -> AutoGradeResponse:
-        is_correct = student_answer.strip().lower() == question_data["answer"].strip().lower()
+    def grade_mcq(question_data: dict, student_answer: Union[str, bool, float, List[Tuple], List[str]]) -> AutoGradeResponse:
+        student_answer_str = str(student_answer) if not isinstance(student_answer, str) else student_answer
+        is_correct = student_answer_str.strip().lower() == question_data["answer"].strip().lower()
         points_earned = 1 if is_correct else 0
         
         explanation = f"Correct answer: {question_data['answer']}"
         if not is_correct:
-            explanation += f"\nYour answer: {student_answer}"
+            explanation += f"\nYour answer: {student_answer_str}"
         
         return AutoGradeResponse(
             is_correct=is_correct,
@@ -25,8 +25,11 @@ class AutoGrader:
         )
     
     @staticmethod
-    def grade_tf(question_data: dict, student_answer: str) -> AutoGradeResponse:
-        student_bool = AutoGrader._parse_boolean(student_answer)
+    def grade_tf(question_data: dict, student_answer: Union[str, bool, float, List[Tuple], List[str]]) -> AutoGradeResponse:
+        if isinstance(student_answer, bool):
+            student_bool = student_answer
+        else:
+            student_bool = AutoGrader._parse_boolean(str(student_answer))
         is_correct = student_bool == question_data["answer"]
         points_earned = 1 if is_correct else 0
         
@@ -43,9 +46,12 @@ class AutoGrader:
         )
     
     @staticmethod
-    def grade_numeric(question_data: dict, student_answer: str) -> AutoGradeResponse:
+    def grade_numeric(question_data: dict, student_answer: Union[str, bool, float, List[Tuple], List[str]]) -> AutoGradeResponse:
         try:
-            student_num = float(student_answer.strip())
+            if isinstance(student_answer, (int, float)):
+                student_num = float(student_answer)
+            else:
+                student_num = float(str(student_answer).strip())
             correct_num = question_data["answer"]
             
             tolerance = abs(correct_num) * 0.01
@@ -75,16 +81,17 @@ class AutoGrader:
             )
     
     @staticmethod
-    def grade_fib(question_data: dict, student_answer: str) -> AutoGradeResponse:
+    def grade_fib(question_data: dict, student_answer: Union[str, bool, float, List[Tuple], List[str]]) -> AutoGradeResponse:
         correct_answer = question_data["answer"].strip().lower()
-        student_answer_clean = student_answer.strip().lower()
+        student_answer_str = str(student_answer) if not isinstance(student_answer, str) else student_answer
+        student_answer_clean = student_answer_str.strip().lower()
         
         is_correct = student_answer_clean == correct_answer
         points_earned = 1 if is_correct else 0
         
         explanation = f"Correct answer: {question_data['answer']}"
         if not is_correct:
-            explanation += f"\nYour answer: {student_answer}"
+            explanation += f"\nYour answer: {student_answer_str}"
         
         return AutoGradeResponse(
             is_correct=is_correct,
@@ -95,9 +102,10 @@ class AutoGrader:
         )
     
     @staticmethod
-    def grade_short_answer(question_data: dict, student_answer: str) -> AutoGradeResponse:
+    def grade_short_answer(question_data: dict, student_answer: Union[str, bool, float, List[Tuple], List[str]]) -> AutoGradeResponse:
         correct_answer = question_data["answer"].strip().lower()
-        student_answer_clean = student_answer.strip().lower()
+        student_answer_str = str(student_answer) if not isinstance(student_answer, str) else student_answer
+        student_answer_clean = student_answer_str.strip().lower()
         
         similarity = difflib.SequenceMatcher(None, correct_answer, student_answer_clean).ratio()
         is_correct = similarity >= 0.7
@@ -106,7 +114,7 @@ class AutoGrader:
         
         explanation = f"Correct answer: {question_data['answer']}"
         if not is_correct:
-            explanation += f"\nYour answer: {student_answer}"
+            explanation += f"\nYour answer: {student_answer_str}"
             explanation += f"\nSimilarity: {similarity:.2%}"
         
         return AutoGradeResponse(
@@ -118,9 +126,17 @@ class AutoGrader:
         )
     
     @staticmethod
-    def grade_matching(question_data: dict, student_answer: str) -> AutoGradeResponse:
+    def grade_matching(question_data: dict, student_answer: Union[str, bool, float, List[Tuple], List[str]]) -> AutoGradeResponse:
         try:
-            student_pairs = AutoGrader._parse_matching_answer(student_answer)
+            if isinstance(student_answer, list):
+                if len(student_answer) == 0:
+                    student_pairs = []
+                elif isinstance(student_answer[0], tuple):
+                    student_pairs = student_answer
+                else:
+                    student_pairs = AutoGrader._parse_matching_answer(str(student_answer))
+            else:
+                student_pairs = AutoGrader._parse_matching_answer(str(student_answer))
             correct_pairs = question_data["answer"]
             
             if len(student_pairs) != len(correct_pairs):
@@ -162,9 +178,12 @@ class AutoGrader:
             )
     
     @staticmethod
-    def grade_ordering(question_data: dict, student_answer: str) -> AutoGradeResponse:
+    def grade_ordering(question_data: dict, student_answer: Union[str, bool, float, List[Tuple], List[str]]) -> AutoGradeResponse:
         try:
-            student_order = AutoGrader._parse_ordering_answer(student_answer)
+            if isinstance(student_answer, list) and (len(student_answer) == 0 or isinstance(student_answer[0], str)):
+                student_order = student_answer
+            else:
+                student_order = AutoGrader._parse_ordering_answer(str(student_answer))
             correct_order = question_data["answer"]
             
             if len(student_order) != len(correct_order):
@@ -200,8 +219,26 @@ class AutoGrader:
             )
     
     @staticmethod
-    def grade_question(question_data: dict, student_answer: str) -> AutoGradeResponse:
-        if not student_answer or student_answer.strip() == "":
+    def grade_question(question_data: dict, student_answer: Union[str, bool, float, List[Tuple], List[str]]) -> AutoGradeResponse:
+        if student_answer is None:
+            return AutoGradeResponse(
+                is_correct=False,
+                points_earned=0,
+                max_points=1,
+                explanation="No answer provided",
+                correct_answer="Answer required"
+            )
+        
+        if isinstance(student_answer, str) and student_answer.strip() == "":
+            return AutoGradeResponse(
+                is_correct=False,
+                points_earned=0,
+                max_points=1,
+                explanation="No answer provided",
+                correct_answer="Answer required"
+            )
+        
+        if isinstance(student_answer, list) and len(student_answer) == 0:
             return AutoGradeResponse(
                 is_correct=False,
                 points_earned=0,

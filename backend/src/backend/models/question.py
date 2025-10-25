@@ -62,13 +62,16 @@ class Question(BaseModel):
     points: int = 1
     points_earned: Optional[int] = None
 
+class StudentAnswer(BaseModel):
+    answer: str | bool | float | List[Tuple] | List[str] # depending on the question type
+
 class FRGrade(BaseModel):
     score: int
     explanation: str
 
 class GradeRequest(BaseModel):
     question: AgentGeneratedQuestion
-    student_answer: str
+    student_answer: str | bool | float | List[Tuple] | List[str]
 
 class GradeResponse(BaseModel):
     status: str
@@ -79,7 +82,7 @@ class GradeResponse(BaseModel):
 
 class AutoGradeRequest(BaseModel):
     question_id: str
-    student_answer: str
+    student_answer: StudentAnswer
 
 class AutoGradeResponse(BaseModel):
     is_correct: bool

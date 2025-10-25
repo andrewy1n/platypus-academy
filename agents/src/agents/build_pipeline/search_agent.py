@@ -102,7 +102,7 @@ class SearchAgent:
     
     async def invoke(self, search_request: SearchRequest):
         try:
-            query = f"Find URLs to {search_request.subject} {search_request.topic} textbooks with practice questions, return your answer in JSON format. Prefer website links over pdf links."
+            query = f"Find URLs to {search_request.subject} {search_request.topics} textbooks with practice questions, return your answer in JSON format. Prefer website links over pdf links."
             
             search_results = None
             queue = Queue()
@@ -207,7 +207,7 @@ def main():
     # Perform search with streaming
     results = search_agent.invoke(SearchRequest(
         subject="Biology",
-        topic="DNA replication",
+        topics=["DNA replication"],
         num_questions_range=(2, 4),
         mode="practice"
     ))

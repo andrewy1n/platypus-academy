@@ -16,7 +16,7 @@ if not AGENTS_BASE:
 
 router = APIRouter(prefix="/grade", tags=["grade"])
 
-async def grade_free_response_question(question_data: dict, student_answer: str) -> dict:
+async def grade_free_response_question(question_data: dict, student_answer) -> dict:
     """
     Grade a single free response question using the agent grader
     Returns a dict with grading results
@@ -283,9 +283,39 @@ async def grade_question(question_id: str):
     
     return grade_result
 
-@router.post("/free-response")
-async def grade_free_response(request: GradeRequest):
+@router.post("/free-response/{question_id}")
+async def grade_free_response(question_id: str):
     try:
+        # Fetch question from database
+        question_data = db_client.get_question(question_id)
+        if not question_data:
+            raise HTTPException(status_code=404, detail="Question not found")
+        
+        # Check if it's a free response question
+        if question_data["question"]["data"]["type"] != "fr":
+            raise HTTPException(
+                status_code=400, 
+                detail="Only free response questions can be graded with this endpoint"
+            )
+        
+        # Check if student_answer exists
+        student_answer = question_data.get("student_answer")
+        if student_answer is None:
+            raise HTTPException(
+                status_code=400, 
+                detail="No student answer provided for this question"
+            )
+        
+        # Reconstruct the question object
+        from ..models.question import AgentGeneratedQuestion
+        question_obj = AgentGeneratedQuestion(**question_data["question"])
+        
+        # Create GradeRequest
+        request = GradeRequest(
+            question=question_obj,
+            student_answer=student_answer
+        )
+        
         return StreamingResponse(
             stream_grade_execution(request),
             media_type="text/event-stream",
@@ -296,5 +326,7 @@ async def grade_free_response(request: GradeRequest):
                 "Access-Control-Allow-Headers": "*",
             }
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start grading: {str(e)}")

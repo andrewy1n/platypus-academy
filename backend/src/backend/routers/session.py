@@ -60,7 +60,7 @@ async def stream_agent_pipeline(req: SearchRequest):
     session = Session(
         id=str(uuid.uuid4()),
         subject=req.subject,
-        topic=req.topic,
+        topics=req.topics,
         questions=[question.id for question in question_list],
         num_questions=len(question_list),
         num_questions_answered=0,

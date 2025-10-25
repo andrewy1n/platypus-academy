@@ -6,7 +6,7 @@ from agents.models.question import QuestionList
 
 class SearchRequest(BaseModel):
     subject: str                    
-    topic: str                      
+    topics: List[str]                      
     num_questions_range: Tuple[int, int]
     mode: Literal["practice", "test"]
     special_requests: Optional[str] = None

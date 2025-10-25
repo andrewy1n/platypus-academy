@@ -1,6 +1,9 @@
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.tools import tool
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.messages import BaseMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 import requests
 import os
@@ -11,10 +14,42 @@ import asyncio
 import concurrent.futures
 from queue import Queue
 from threading import Thread
+from typing import List
+import json
 
 from agents.models.question import FR
 
 load_dotenv()
+
+
+class InMemoryChatMessageHistory(BaseChatMessageHistory):
+    """In-memory chat message history store"""
+    
+    def __init__(self):
+        self.messages: List[BaseMessage] = []
+    
+    def add_message(self, message: BaseMessage) -> None:
+        """Add a message to the store"""
+        self.messages.append(message)
+    
+    def get_messages(self) -> List[BaseMessage]:
+        """Retrieve all messages from the store"""
+        return self.messages
+    
+    def clear(self) -> None:
+        """Clear all messages from the store"""
+        self.messages = []
+
+
+# Global store for user sessions
+user_sessions = {}
+
+
+def get_session_history(session_id: str) -> InMemoryChatMessageHistory:
+    """Get or create a session history for a user"""
+    if session_id not in user_sessions:
+        user_sessions[session_id] = InMemoryChatMessageHistory()
+    return user_sessions[session_id]
 
 
 @tool
@@ -132,10 +167,14 @@ class AssistantAgent:
             simplify_expression_tool,
         ]
 
-        self.agent = create_agent(
+        # Create the base agent
+        self.base_agent = create_agent(
             "anthropic:claude-sonnet-4-5",
             tools=self.base_tools,
         )
+        
+        # For now, use the base agent directly and handle memory manually
+        self.agent = self.base_agent
         
         self.system = """
             You are a specialized assistant agent. Your job is to:
@@ -166,10 +205,13 @@ class AssistantAgent:
                 
                 if mcp_tools:
                     all_tools = self.base_tools + mcp_tools
-                    self.agent = create_agent(
+                    # Recreate base agent with MCP tools
+                    self.base_agent = create_agent(
                         "anthropic:claude-sonnet-4-5",
                         tools=all_tools,
                     )
+                    # Update the agent reference
+                    self.agent = self.base_agent
                     print(f"✓ Agent updated with {len(mcp_tools)} MCP tools from Elastic Agent Builder")
                     for tool in mcp_tools:
                         print(f"  - {tool.name}: {tool.description[:100] if hasattr(tool, 'description') else 'No description'}")
@@ -186,16 +228,36 @@ class AssistantAgent:
     
     async def generate_response(
         self, 
-        query: str
+        query: str,
+        thread_id: str
     ):
         await self._load_mcp_tools()
         
         try:
-            prompt_text = f"""
-            Query: {query}
-
-            Return the response to the user's query.
-            """
+            # Get conversation history for this thread
+            history = get_session_history(thread_id)
+            chat_history = history.get_messages()
+            
+            # Create input with user message and history
+            input_data = {
+                "messages": [
+                    {"role": "user", "content": query}
+                ]
+            }
+            
+            # Add conversation history if it exists
+            if chat_history:
+                # Convert history to the format expected by the agent
+                history_messages = []
+                for msg in chat_history:
+                    if hasattr(msg, 'content'):
+                        if hasattr(msg, '__class__') and 'Human' in msg.__class__.__name__:
+                            history_messages.append({"role": "user", "content": msg.content})
+                        elif hasattr(msg, '__class__') and 'AI' in msg.__class__.__name__:
+                            history_messages.append({"role": "assistant", "content": msg.content})
+                
+                # Prepend history to current message
+                input_data["messages"] = history_messages + input_data["messages"]
             
             final_message = None
             queue = Queue()
@@ -203,12 +265,15 @@ class AssistantAgent:
             
             def _stream_agent():
                 try:
-                    for chunk in self.agent.stream(
-                        {"messages": [{"role": "user", "content": prompt_text}]},
-                        stream_mode="updates",
-                    ):
-                        queue.put(chunk)
+                    # Debug: Print what we're sending
+                    print(f"DEBUG: Input data: {input_data}")
+                    
+                    # Use the agent directly with messages format
+                    result = self.agent.invoke(input_data)
+                    print(f"DEBUG: Result: {result}")
+                    queue.put(('result', result))
                 except Exception as e:
+                    print(f"DEBUG: Error: {e}")
                     queue.put(('error', e))
                 finally:
                     queue.put(sentinel)
@@ -232,31 +297,45 @@ class AssistantAgent:
                         }
                         break
                     
-                    chunk = item
-                    for step, data in chunk.items():
-                        if 'messages' in data and data['messages']:
-                            message = data['messages'][-1]
-                            final_message = message
+                    if isinstance(item, tuple) and item[0] == 'result':
+                        result = item[1]
+                        # Extract the final response from the result
+                        if 'output' in result:
+                            # The response is in the 'output' field
+                            response_content = result['output']
                             
-                            if hasattr(message, 'tool_calls') and message.tool_calls:
-                                for tool_call in message.tool_calls:
-                                    yield {
-                                        'type': 'tool_call',
-                                        'tool': tool_call['name'],
-                                        'args': tool_call['args'],
-                                        'id': tool_call['id']
-                                    }
+                            # Save to conversation history
+                            from langchain_core.messages import HumanMessage, AIMessage
+                            history = get_session_history(thread_id)
+                            history.add_message(HumanMessage(content=query))
+                            history.add_message(AIMessage(content=response_content))
+                            
+                            yield {
+                                'type': 'final_response',
+                                'content': response_content
+                            }
+                        elif 'messages' in result and result['messages']:
+                            # Fallback to messages format
+                            final_message = result['messages'][-1]
+                            
+                            # Save to conversation history
+                            from langchain_core.messages import HumanMessage, AIMessage
+                            history = get_session_history(thread_id)
+                            history.add_message(HumanMessage(content=query))
+                            history.add_message(AIMessage(content=final_message.content))
+                            
+                            yield {
+                                'type': 'final_response',
+                                'content': final_message.content
+                            }
+                        else:
+                            yield {
+                                'type': 'error',
+                                'message': 'No response generated'
+                            }
+                        break
             
-            if final_message:
-                yield {
-                    'type': 'final_response',
-                    'content': final_message.content
-                }
-            else:
-                yield {
-                    'type': 'error',
-                    'message': 'No response generated'
-                }
+            # This check is now redundant since we handle it above
 
         except Exception as e:
             yield {

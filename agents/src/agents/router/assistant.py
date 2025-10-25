@@ -15,7 +15,7 @@ async def stream_assistant_execution(request: AssistantRequest):
         yield f"data: {json.dumps({'status': 'started', 'step': 'assistant', 'message': 'Assistant agent: Starting to process your query...'})}\n\n"
         
         try:
-            async for event in assistant.generate_response(request.query):
+            async for event in assistant.generate_response(request.query, request.thread_id):
                 if event['type'] == 'tool_call':
                     yield f"data: {json.dumps({'status': 'tool_call', 'step': 'assistant', 'tool': event['tool'], 'args': event['args'], 'tool_id': event['id']})}\n\n"
                 elif event['type'] == 'final_response':
