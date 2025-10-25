@@ -67,7 +67,7 @@ async def parse_step(data: PipelineData):
                 'total': total
             }
         
-        parsed_results = parser_agent.process_urls_parallel(data.search_results, max_workers=3)
+        parsed_results = parser_agent.process_urls_parallel(data.search_results, max_workers=4)
         
         data.parsed_results = parsed_results
         data.current_step = "parse_completed"

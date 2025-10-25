@@ -1,7 +1,5 @@
-from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple
-from urllib.parse import urlparse
-from pydantic import BaseModel, Field, model_validator
+from typing import Any, List, Literal, Optional, Tuple
+from pydantic import BaseModel, Field
 
 Subject = Literal["math", "chemistry", "physics", "biology", "computer science"]
 Difficulty = Literal["easy","medium","hard"]
@@ -44,7 +42,7 @@ class FR(BaseModel):
     points: int
     rubric: str
 
-class Question(BaseModel):
+class AgentGeneratedQuestion(BaseModel):
     data: MCQ | TF | Numeric | FIB | ShortAnswer | Matching | Ordering | FR
     text: str = Field(description="The question text")
     subject: Subject = Field(description="The subject of the question")
@@ -53,15 +51,23 @@ class Question(BaseModel):
     difficulty: Difficulty
     image_url: Optional[str] = Field(description="The URL of the image of the question")
 
-class QuestionList(BaseModel):
-    questions: List[Question]
-    
+class AgentGeneratedQuestionList(BaseModel):
+    questions: List[AgentGeneratedQuestion]
+
+class Question(BaseModel):
+    id: str
+    question: AgentGeneratedQuestion
+    student_answer: Optional[Any] = None
+    is_completed: bool = False
+    points: int = 1
+    points_earned: Optional[int] = None
+
 class FRGrade(BaseModel):
     score: int
     explanation: str
 
 class GradeRequest(BaseModel):
-    question: Question
+    question: AgentGeneratedQuestion
     student_answer: str
 
 class GradeResponse(BaseModel):
@@ -70,3 +76,21 @@ class GradeResponse(BaseModel):
     message: str
     data: Optional[dict] = None
     error: Optional[str] = None
+
+class AutoGradeRequest(BaseModel):
+    question_id: str
+    student_answer: str
+
+class AutoGradeResponse(BaseModel):
+    is_correct: bool
+    points_earned: int
+    max_points: int
+    explanation: str
+    correct_answer: str
+
+class TestResult(BaseModel):
+    percentage: float
+    total_points: int
+    points_earned: int
+    summary: str
+    improvements: List[str]

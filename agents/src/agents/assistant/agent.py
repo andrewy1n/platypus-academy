@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.tools import tool
+from langchain_mcp_adapters.client import MultiServerMCPClient
 import requests
 import os
 import sympy as sp
@@ -108,14 +109,32 @@ def query_wolfram_alpha_tool(query: str) -> str:
 class AssistantAgent:
     def __init__(self):
         self.wolfram_app_id = os.getenv("WOLFRAM_APP_ID")
+        self.mcp_url = os.getenv("ELASTIC_MCP_URL")
+        self.mcp_api_key = os.getenv("ELASTICSEARCH_API_KEY")
+        
+        self.mcp_client = None
+        self.mcp_tools_loaded = False
+        
+        if self.mcp_url and self.mcp_api_key:
+            self.mcp_client = MultiServerMCPClient({
+                "elastic_agent_builder": {
+                    "transport": "streamable_http",
+                    "url": self.mcp_url,
+                    "headers": {
+                        "Authorization": f"ApiKey {self.mcp_api_key}"
+                    }
+                }
+            })
+        
+        self.base_tools = [
+            solve_equation_tool,
+            query_wolfram_alpha_tool,
+            simplify_expression_tool,
+        ]
 
         self.agent = create_agent(
             "anthropic:claude-sonnet-4-5",
-            tools=[
-                solve_equation_tool,
-                query_wolfram_alpha_tool,
-                simplify_expression_tool,
-            ],
+            tools=self.base_tools,
         )
         
         self.system = """
@@ -123,21 +142,54 @@ class AssistantAgent:
 
             Help the user with their question or problem.
 
+            Use the elastic search tools to retrieve context about any practice/test problem the user is asking about.
+            You can also use other scientific and mathematical tools to fact check your reasoning before explaining anything.
+
             You have access to powerful mathematical and scientific tools:
             - SymPy tools for symbolic mathematics (solve_equation_tool, simplify_expression_tool)
             - Wolfram|Alpha LLM API for advanced computations and scientific queries (query_wolfram_alpha_tool)
             - Use Wolfram|Alpha for complex calculations, unit conversions, scientific data
             - Use SymPy for symbolic math, equation solving, and expression simplification
+            - MCP tools from Elastic Agent Builder for advanced search and knowledge retrieval (if configured)
             
             Always validate mathematical expressions and check answer correctness when possible.
             For scientific questions, use Wolfram|Alpha to verify facts and calculations.
         """
+    
+    async def _load_mcp_tools(self):
+        if not self.mcp_tools_loaded and self.mcp_client:
+            try:
+                print("Fetching tools from MCP server...")
+                
+                mcp_tools = await self.mcp_client.get_tools()
+                print(f"Retrieved {len(mcp_tools)} tools from MCP server")
+                
+                if mcp_tools:
+                    all_tools = self.base_tools + mcp_tools
+                    self.agent = create_agent(
+                        "anthropic:claude-sonnet-4-5",
+                        tools=all_tools,
+                    )
+                    print(f"✓ Agent updated with {len(mcp_tools)} MCP tools from Elastic Agent Builder")
+                    for tool in mcp_tools:
+                        print(f"  - {tool.name}: {tool.description[:100] if hasattr(tool, 'description') else 'No description'}")
+                else:
+                    print("No MCP tools retrieved from server")
+                    
+                self.mcp_tools_loaded = True
+            except Exception as e:
+                import traceback
+                print(f"Warning: Could not load MCP tools: {e}")
+                print(f"Traceback: {traceback.format_exc()}")
+                self.mcp_tools_loaded = True
     
     
     async def generate_response(
         self, 
         query: str
     ):
+        await self._load_mcp_tools()
+        
         try:
             prompt_text = f"""
             Query: {query}

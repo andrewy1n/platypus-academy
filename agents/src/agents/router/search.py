@@ -75,7 +75,6 @@ async def stream_pipeline_execution(request: SearchRequest):
             data = validate_step(data)
             if data.current_step == "validate_completed":
                 validated_questions = data.validated_questions
-                yield f"data: {json.dumps({'status': 'completed', 'step': 'validate', 'message': f'Generated {len(validated_questions.questions)} validated questions', 'data': {'total_questions': validated_questions.total_count, 'valid_questions': validated_questions.valid_count, 'invalid_questions': validated_questions.invalid_count}})}\n\n"
                 await asyncio.sleep(0)
                 
                 for i, question in enumerate(validated_questions.questions, 1):
@@ -83,7 +82,6 @@ async def stream_pipeline_execution(request: SearchRequest):
                     yield f"data: {json.dumps({'status': 'question', 'step': 'validate', 'message': f'Question {i}/{len(validated_questions.questions)}', 'data': question_data})}\n\n"
                     await asyncio.sleep(0)
                 
-                yield f"data: {json.dumps({'status': 'completed', 'step': 'pipeline', 'message': 'Pipeline completed successfully', 'data': {'total_questions': validated_questions.total_count, 'valid_questions': validated_questions.valid_count, 'success_rate': f'{(validated_questions.valid_count/validated_questions.total_count)*100:.1f}%'}})}\n\n"
                 await asyncio.sleep(0)
             else:
                 yield f"data: {json.dumps({'status': 'error', 'step': 'validate', 'message': 'Validation failed', 'error': data.error_message})}\n\n"

@@ -9,6 +9,7 @@ class SearchRequest(BaseModel):
     topic: str                      
     num_questions_range: Tuple[int, int]
     mode: Literal["practice", "test"]
+    special_requests: Optional[str] = None
 
 class SearchResult(BaseModel):
     url: HttpUrl

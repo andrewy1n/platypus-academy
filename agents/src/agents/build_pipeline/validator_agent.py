@@ -74,8 +74,12 @@ def query_wolfram_alpha_tool(query: str) -> str:
     """
     Query Wolfram|Alpha LLM API for mathematical and scientific computations.
     
+    IMPORTANT: Use simplified keyword queries for best results.
+    - Good: "adenine thymine hydrogen bonds", "France population"
+    - Bad: "how many hydrogen bonds between adenine and thymine", "how many people in France"
+    
     Args:
-        query: Natural language query for Wolfram|Alpha
+        query: Simplified keyword query for Wolfram|Alpha (keep it concise)
         
     Returns:
         Computed result from Wolfram|Alpha
@@ -97,6 +101,11 @@ def query_wolfram_alpha_tool(query: str) -> str:
         
         # Make the API request
         response = requests.get(url, params=params, timeout=30)
+        
+        # Handle 501 errors with helpful message
+        if response.status_code == 501:
+            return f"Wolfram|Alpha couldn't interpret the query: '{query}'. Try simplifying to keywords (e.g., 'A-T base pair hydrogen bonds' instead of 'number of hydrogen bonds between adenine and thymine'). You may want to rephrase and try again."
+        
         response.raise_for_status()
         
         # Return the computed result
@@ -112,11 +121,37 @@ class ValidatorAgent:
         self.wolfram_app_id = os.getenv("WOLFRAM_APP_ID")
 
         model = ChatAnthropic(
-            model="claude-sonnet-4-5",
+            model="claude-opus-4-1",
         )
+        self.system = """
+        You are a specialized question validator agent. Your job is to:
+        
+            Take raw question data from scrape agents and transform them into properly structured, validated questions
+            Use mathematical tools to verify answers when applicable
+            Ensure questions meet quality standards and schema requirements
+            Return validated questions in the specified format
+
+            Note: FIB stands for Fill-in-the blank, requires the blank be somewhere inside the sentence.
+            Short answer questions should be answered in a single word, otherwise they become free response questions.
+
+            You have access to powerful mathematical and scientific tools:
+            - SymPy tools for symbolic mathematics (solve_equation_tool, simplify_expression_tool)
+            - Wolfram|Alpha LLM API for advanced computations and scientific queries (query_wolfram_alpha_tool)
+            - Use Wolfram|Alpha for complex calculations, unit conversions, scientific data
+            - Use SymPy for symbolic math, equation solving, and expression simplification
+            
+            IMPORTANT: When using Wolfram|Alpha, use SIMPLIFIED KEYWORD QUERIES:
+            - Good: "adenine thymine hydrogen bonds", "speed of light", "solve x^2+5x+6=0"
+            - Bad: "how many hydrogen bonds between adenine and thymine", "what is the speed of light"
+            - Convert verbose questions to concise keyword format before querying
+            
+            Always validate mathematical expressions and check answer correctness when possible.
+            For scientific questions, use Wolfram|Alpha to verify facts and calculations.
+        """
         
         self.agent = create_agent(
             model,
+            system_prompt=self.system,
             tools=[
                 solve_equation_tool,
                 query_wolfram_alpha_tool,
@@ -125,33 +160,6 @@ class ValidatorAgent:
             response_format=ToolStrategy(QuestionList)
         )
         
-        self.system = """
-        You are a specialized question validator agent. Your job is to:
-        
-        Take raw question data from scrape agents and transform them into properly structured, validated questions
-            Use mathematical tools to verify answers when applicable
-            Ensure questions meet quality standards and schema requirements
-            Return validated questions in the specified format
-
-            Note: FIB stands for Fill-in-the blank, requires the blank be somewhere inside the sentence.
-
-            You have access to powerful mathematical and scientific tools:
-            - SymPy tools for symbolic mathematics (solve_equation_tool, simplify_expression_tool)
-            - Wolfram|Alpha LLM API for advanced computations and scientific queries (query_wolfram_alpha_tool)
-            - Use Wolfram|Alpha for complex calculations, unit conversions, scientific data
-            - Use SymPy for symbolic math, equation solving, and expression simplification
-            
-            Always validate mathematical expressions and check answer correctness when possible.
-            For scientific questions, use Wolfram|Alpha to verify facts and calculations.
-        """
-        
-        self.human = "{input}"
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", self.system), 
-            ("human", self.human)
-        ])
-        
-    
     
     def validate_questions(
         self, 

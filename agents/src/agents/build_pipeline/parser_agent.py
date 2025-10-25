@@ -140,7 +140,7 @@ class ParserAgent:
 
                 if there are no questions, return an empty list.
             """
-            res = self.query_elastic_agent(prompt, "test")
+            res = self.query_elastic_agent(prompt, "question_parser")
             
             if res:
                 print("Agent response received")
@@ -159,7 +159,7 @@ class ParserAgent:
             print(f"Error processing {result.title}: {e}")
             return {"success": False, "error": str(e), "result": result}
     
-    def process_urls_parallel(self, search_results: list[SearchResult], max_workers: int = 3) -> list:
+    def process_urls_parallel(self, search_results: list[SearchResult], max_workers: int = 4) -> list:
         print(f"Processing {len(search_results)} URLs in parallel...")
         
         practice_questions = []
