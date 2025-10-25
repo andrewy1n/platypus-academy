@@ -1,0 +1,42 @@
+/* Practice With Chat Container */
+.practice-with-chat {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.practice-content {
+  width: 100%;
+  height: 100%;
+  transition: margin-right 0.3s ease;
+}
+
+/* Adjust content when chat sidebar is open */
+.practice-with-chat:has(.chat-sidebar) .practice-content {
+  margin-right: 400px;
+}
+
+/* Ensure chat bubble doesn't interfere with content */
+.practice-with-chat .chat-bubble-container {
+  z-index: 1000;
+  right: 24px; /* Adjust position when sidebar is open */
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .practice-with-chat:has(.chat-sidebar) .practice-content {
+    margin-right: 350px;
+  }
+}
+
+@media (max-width: 768px) {
+  .practice-with-chat:has(.chat-sidebar) .practice-content {
+    margin-right: 0;
+  }
+  
+  .practice-with-chat .chat-bubble-container {
+    right: 20px;
+  }
+}

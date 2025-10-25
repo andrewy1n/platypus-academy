@@ -1,0 +1,135 @@
+/* Chat Bubble Container */
+.chat-bubble-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+}
+
+/* Chat Bubble Button */
+.chat-bubble {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #4f46e5;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.chat-bubble:hover {
+  background-color: #4338ca;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+}
+
+.chat-bubble:active {
+  transform: translateY(0);
+}
+
+.chat-bubble.has-unread {
+  animation: pulse 2s infinite;
+}
+
+/* Chat Bubble Icon */
+.chat-bubble-icon {
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Notification Badge */
+.chat-bubble-notification {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+}
+
+.notification-dot {
+  width: 8px;
+  height: 8px;
+  background-color: white;
+  border-radius: 50%;
+  animation: blink 1.5s infinite;
+}
+
+/* Animations */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3), 0 0 0 8px rgba(79, 70, 229, 0.1);
+  }
+  100% {
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  }
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0.3;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .chat-bubble-container {
+    bottom: 20px;
+    right: 20px;
+  }
+  
+  .chat-bubble {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .chat-bubble-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-bubble-container {
+    bottom: 16px;
+    right: 16px;
+  }
+  
+  .chat-bubble {
+    width: 52px;
+    height: 52px;
+  }
+  
+  .chat-bubble-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .chat-bubble-notification {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .notification-dot {
+    width: 6px;
+    height: 6px;
+  }
+}
