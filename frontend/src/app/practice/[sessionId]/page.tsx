@@ -8,6 +8,7 @@ import EndSummary from '../../../components/EndSummary'
 import { sessionService } from '../../../services/sessionService'
 import { questionService } from '../../../services/questionService'
 import { gradingService } from '../../../services/gradingService'
+import { getMockQuestions } from '../../../services/mockQuestionService'
 import './page.css'
 
 interface PracticePageProps {
@@ -29,6 +30,14 @@ export default function PracticePage({ params }: PracticePageProps) {
   useEffect(() => {
     const loadQuestions = async () => {
       try {
+        // Check if this is a mock session
+        if (sessionId.startsWith('mock-session-')) {
+          const mockQuestions = getMockQuestions(sessionId)
+          setQuestions(mockQuestions)
+          setIsLoading(false)
+          return
+        }
+        
         const response = await sessionService.getSessionQuestions(sessionId)
         
         // Handle different response structures
@@ -151,8 +160,8 @@ export default function PracticePage({ params }: PracticePageProps) {
     const currentQuestion = questions[currentQuestionIndex]
     const currentAnswer = currentQuestion ? userAnswers[currentQuestion.id!] : undefined
     
-    // Save answer before advancing
-    if (currentQuestion && currentAnswer !== undefined) {
+    // Save answer before advancing (skip for mock sessions)
+    if (currentQuestion && currentAnswer !== undefined && !sessionId.startsWith('mock-session-')) {
       try {
         await questionService.saveAnswer(currentQuestion.id!, { answer: currentAnswer })
         

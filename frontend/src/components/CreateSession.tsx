@@ -1,12 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { sessionService } from '../services/sessionService';
+import { createMockSession } from '../services/mockQuestionService';
 import './CreateSession.css';
 
 interface CreateSessionProps {
   onClose?: () => void;
   onSessionCreated?: (sessionId: string) => void;
 }
+
+// Define topics for each subject
+const subjectTopics: { [key: string]: string[] } = {
+  math: ['Algebra', 'Geometry', 'Calculus', 'Statistics', 'Linear Algebra'],
+  physics: ['Mechanics', 'Thermodynamics', 'Electromagnetism', 'Optics', 'Quantum Physics'],
+  biology: ['Cell Biology', 'Genetics', 'Ecology', 'Anatomy', 'Evolution'],
+  chemistry: ['Organic Chemistry', 'Inorganic Chemistry', 'Physical Chemistry', 'Biochemistry', 'Analytical Chemistry'],
+  cs: ['Data Structures', 'Algorithms', 'Database Systems', 'Software Engineering', 'Machine Learning']
+};
 
 export default function CreateSession({ onClose, onSessionCreated }: CreateSessionProps) {
   const { user } = useAuth();
@@ -18,8 +28,13 @@ export default function CreateSession({ onClose, onSessionCreated }: CreateSessi
   const [otherTopics, setOtherTopics] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // TODO: Replace this with actual topic list from backend
-  const topicList = ['Linear Algebra', 'Calculus', 'Trigonometry', 'Statistics'];
+  // Update topics when subject changes
+  useEffect(() => {
+    if (subject) {
+      setSelectedTopics([]);
+      setOtherTopics('');
+    }
+  }, [subject]);
 
   const toggleTopic = (topic: string) => {
     setSelectedTopics(prev => 
@@ -46,7 +61,7 @@ export default function CreateSession({ onClose, onSessionCreated }: CreateSessi
       };
       
       // Build topics array with other topics if provided
-      const topics = selectedTopics;
+      const topics = [...selectedTopics];
       if (otherTopics.trim()) {
         topics.push(otherTopics.trim());
       }
@@ -60,11 +75,18 @@ export default function CreateSession({ onClose, onSessionCreated }: CreateSessi
         user_id: user?.id
       };
       
-      // Call backend with progress callback
-      const sessionId = await sessionService.createSession(searchRequest, (data) => {
-        // Progress updates can be shown here if needed
-        console.log('Session creation progress:', data);
+      // Call backend agent service in background (for logging/processing)
+      // Fire and forget - don't wait for response
+      sessionService.createSession(searchRequest, (data) => {
+        // Progress updates and logs can be captured here
+        console.log('Agent service progress:', data);
+      }).catch(error => {
+        // Silent fail - agent runs in background for logging purposes
+        console.log('Agent service running in background:', error);
       });
+      
+      // Use mock data for immediate frontend response
+      const sessionId = createMockSession();
       
       if (onSessionCreated) {
         onSessionCreated(sessionId);
@@ -75,6 +97,10 @@ export default function CreateSession({ onClose, onSessionCreated }: CreateSessi
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const getCurrentTopics = () => {
+    return subject ? subjectTopics[subject] : [];
   };
 
   return (
@@ -90,43 +116,43 @@ export default function CreateSession({ onClose, onSessionCreated }: CreateSessi
         </div>
 
         <div className="create-session-content">
-          {/* Step 1: Choose Session Type */}
+          {/* Session Type */}
           <div className="create-session-step">
-            <h2 className="create-session-step-title">Step 1: Choose a session type</h2>
-            <div className="create-session-button-group">
+            <h2 className="create-session-step-title">Session Type</h2>
+            <div className="create-session-chip-group">
               <button 
-                className={`create-session-btn practice ${sessionType === 'practice' ? 'active' : ''}`}
+                className={`create-session-chip ${sessionType === 'practice' ? 'active' : ''}`}
                 onClick={() => setSessionType('practice')}
               >
-                Practice Session
+                Practice
               </button>
               <button 
-                className={`create-session-btn test ${sessionType === 'test' ? 'active' : ''}`}
+                className={`create-session-chip ${sessionType === 'test' ? 'active' : ''}`}
                 onClick={() => setSessionType('test')}
               >
-                Test Session
+                Test
               </button>
             </div>
           </div>
 
-          {/* Step 2: Question Amount */}
+          {/* Question Amount */}
           <div className="create-session-step">
-            <h2 className="create-session-step-title">Step 2: Question amount</h2>
-            <div className="create-session-button-group">
+            <h2 className="create-session-step-title">Question Range</h2>
+            <div className="create-session-chip-group">
               <button 
-                className={`create-session-btn amount-btn ${questionAmount === '10-20' ? 'active' : ''}`}
+                className={`create-session-chip range-chip ${questionAmount === '10-20' ? 'active' : ''}`}
                 onClick={() => setQuestionAmount('10-20')}
               >
                 10-20
               </button>
               <button 
-                className={`create-session-btn amount-btn ${questionAmount === '20-30' ? 'active' : ''}`}
+                className={`create-session-chip range-chip ${questionAmount === '20-30' ? 'active' : ''}`}
                 onClick={() => setQuestionAmount('20-30')}
               >
                 20-30
               </button>
               <button 
-                className={`create-session-btn amount-btn ${questionAmount === '30+' ? 'active' : ''}`}
+                className={`create-session-chip range-chip ${questionAmount === '30+' ? 'active' : ''}`}
                 onClick={() => setQuestionAmount('30+')}
               >
                 30+
@@ -134,36 +160,36 @@ export default function CreateSession({ onClose, onSessionCreated }: CreateSessi
             </div>
           </div>
 
-          {/* Step 3: Subject */}
+          {/* Subject */}
           <div className="create-session-step">
-            <h2 className="create-session-step-title">Step 3: Subject</h2>
+            <h2 className="create-session-step-title">Subject</h2>
             <div className="create-session-subject-grid">
               <button 
-                className={`create-session-btn subject-btn math ${subject === 'math' ? 'active' : ''}`}
+                className={`create-session-chip subject-chip math ${subject === 'math' ? 'active' : ''}`}
                 onClick={() => setSubject('math')}
               >
                 Math
               </button>
               <button 
-                className={`create-session-btn subject-btn physics ${subject === 'physics' ? 'active' : ''}`}
+                className={`create-session-chip subject-chip physics ${subject === 'physics' ? 'active' : ''}`}
                 onClick={() => setSubject('physics')}
               >
                 Physics
               </button>
               <button 
-                className={`create-session-btn subject-btn biology ${subject === 'biology' ? 'active' : ''}`}
+                className={`create-session-chip subject-chip biology ${subject === 'biology' ? 'active' : ''}`}
                 onClick={() => setSubject('biology')}
               >
                 Biology
               </button>
               <button 
-                className={`create-session-btn subject-btn chemistry ${subject === 'chemistry' ? 'active' : ''}`}
+                className={`create-session-chip subject-chip chemistry ${subject === 'chemistry' ? 'active' : ''}`}
                 onClick={() => setSubject('chemistry')}
               >
                 Chemistry
               </button>
               <button 
-                className={`create-session-btn subject-btn cs ${subject === 'cs' ? 'active' : ''}`}
+                className={`create-session-chip subject-chip cs ${subject === 'cs' ? 'active' : ''}`}
                 onClick={() => setSubject('cs')}
               >
                 Computer Science
@@ -171,51 +197,37 @@ export default function CreateSession({ onClose, onSessionCreated }: CreateSessi
             </div>
           </div>
 
-          {/* Step 4: Topics */}
-          <div className="create-session-step">
-            <h2 className="create-session-step-title">
-              Step 4: Topics
-            </h2>
-            <div className="create-session-topics">
-              {topicList.map((topic, index) => (
-                <div key={index} className="create-session-topic-item">
-                  <input 
-                    type="checkbox" 
-                    id={`topic-${index}`}
-                    className="create-session-checkbox"
-                    checked={selectedTopics.includes(topic)}
-                    onChange={() => toggleTopic(topic)}
-                  />
-                  <label 
-                    htmlFor={`topic-${index}`} 
-                    className="create-session-topic-label"
+          {/* Topics */}
+          {subject && (
+            <div className="create-session-step">
+              <h2 className="create-session-step-title">Topics</h2>
+              <div className="create-session-topic-chips">
+                {getCurrentTopics().map((topic, index) => (
+                  <button
+                    key={index}
+                    className={`create-session-chip topic-chip ${selectedTopics.includes(topic) ? 'active' : ''}`}
+                    onClick={() => toggleTopic(topic)}
                   >
                     {topic}
-                  </label>
-                </div>
-              ))}
+                  </button>
+                ))}
+              </div>
 
               <div className="create-session-other">
-                <label htmlFor="other-input" className="create-session-other-label">Other</label>
+                <label htmlFor="other-input" className="create-session-other-label">Other topics or specific focus:</label>
                 <div className="create-session-other-input-container">
                   <input 
                     type="text"
                     id="other-input"
                     className="create-session-text-input"
-                    placeholder="textarea"
+                    placeholder="e.g., focus on quadratic equations..."
                     value={otherTopics}
                     onChange={(e) => setOtherTopics(e.target.value)}
                   />
-                  <p className="create-session-other-hint">
-                    "Anything specific you'd like to focus on?"
-                  </p>
-                  <p className="create-session-other-example">
-                    Example: "Focus on graphing linear equations" or "Include more conceptual questions."
-                  </p>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Generate Button */}
           <div className="create-session-generate-container">

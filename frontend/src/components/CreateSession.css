@@ -15,14 +15,14 @@
 
 .create-session-modal {
   background-color: white;
-  border: 1px solid #8e8e93;
-  border-radius: 16px;
+  border: 2px solid #44633F;
+  border-radius: 20px;
   width: 700px;
   max-width: calc(100vw - 40px);
   min-height: 90vh;
   overflow-y: auto;
   position: relative;
-  box-shadow: 0px 8px 24px 0px rgba(0, 0, 0, 0.15);
+  box-shadow: 0px 12px 32px 0px rgba(68, 99, 63, 0.15);
 }
 
 .create-session-header {
@@ -55,255 +55,241 @@
 }
 
 .create-session-content {
-  padding: 32px 40px 40px;
+  padding: 32px 40px 40px 56px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 40px;
 }
 
 .create-session-step {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #CACFD6;
+  position: relative;
+}
+
+.create-session-step:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.create-session-step::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background: #44633F;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.create-session-step:focus-within::before,
+.create-session-step:hover::before {
+  opacity: 1;
 }
 
 .create-session-step-title {
   font-family: 'Inter', sans-serif;
-  font-weight: 300;
-  font-size: 36px;
-  color: #1e1e1e;
-  margin: 0;
+  font-weight: 700;
+  font-size: 28px;
+  color: #000000;
+  margin: 0 0 8px 0;
   line-height: 1.2;
+  position: relative;
+  padding-left: 0;
+  letter-spacing: -0.02em;
 }
 
-/* Button Base Styles */
-.create-session-btn {
+.create-session-step-title::after {
+  content: '🦆';
+  margin-left: 12px;
+  opacity: 0.8;
+  font-size: 24px;
+  display: inline-block;
+  transform: rotate(0deg);
+  transition: transform 0.3s ease;
+}
+
+.create-session-step-title:hover::after {
+  transform: rotate(15deg) scale(1.1);
+}
+
+/* Chip Base Styles */
+.create-session-chip {
   font-family: 'Open Sans', sans-serif;
   font-weight: 600;
-  font-size: 24px;
-  border: none;
-  border-radius: 6px;
-  padding: 16px;
+  font-size: 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 24px;
+  padding: 10px 20px;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+  background-color: white;
+  color: #374151;
 }
 
-.create-session-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.create-session-chip:hover {
+  border-color: #9ca3af;
+  background-color: #f9fafb;
 }
 
-/* Session Type Buttons (Step 1) */
-.create-session-button-group {
+.create-session-chip.active {
+  border-color: #047857;
+  background-color: #047857;
+  color: white;
+  transform: scale(1.02);
+}
+
+/* Chip Group Layout */
+.create-session-chip-group {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
 }
 
-.create-session-btn.practice {
-  background-color: #10b981;
-  color: white;
-  min-width: 220px;
-  width: calc(50% - 10px);
-  height: 64px;
-  flex: 1;
+/* Session Type Chips */
+.create-session-chip:not(.range-chip):not(.subject-chip):not(.topic-chip) {
+  min-width: 120px;
+  text-align: center;
 }
 
-.create-session-btn.practice:hover {
-  background-color: #059669;
+/* Range Chips (Question Amount) */
+.create-session-chip.range-chip {
+  min-width: 80px;
+  text-align: center;
 }
 
-.create-session-btn.test {
-  background-color: #10b981;
-  color: white;
-  min-width: 220px;
-  width: calc(50% - 10px);
-  height: 64px;
-  flex: 1;
-}
-
-.create-session-btn.test:hover {
-  background-color: #059669;
-}
-
-.create-session-btn.active.practice,
-.create-session-btn.active.test {
-  transform: scale(0.96);
-  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.6);
-  background-color: #047857;
-  border: none;
-}
-
-/* Question Amount Buttons (Step 2) */
-.create-session-btn.amount-btn {
-  height: 56px;
-  color: white;
-  min-width: 100px;
-  width: calc(33.333% - 8px);
-  flex: 1;
-}
-
-.create-session-btn.amount-btn:first-of-type {
-  background-color: rgba(165, 180, 252, 0.96);
-}
-
-.create-session-btn.amount-btn:nth-of-type(2) {
-  background-color: #c4b5fd;
-}
-
-.create-session-btn.amount-btn:nth-of-type(3) {
-  background-color: #c4b5fd;
-}
-
-.create-session-btn.amount-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0px 6px 8px 0px rgba(0, 0, 0, 0.6);
-}
-
-.create-session-btn.amount-btn.active {
-  transform: scale(0.96);
-  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.6);
-  background-color: #047857;
-  border: none;
-  color: white;
-}
-
-/* Subject Buttons (Step 3) */
+/* Subject Chips */
 .create-session-subject-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
   width: 100%;
 }
 
-.create-session-btn.subject-btn {
-  height: 56px;
-  color: white;
-}
-
-.create-session-btn.subject-btn.math {
-  background-color: rgba(96, 165, 250, 0.89);
-  grid-column: span 1;
-}
-
-.create-session-btn.subject-btn.physics {
-  background-color: #b8b3af;
-  grid-column: span 1;
-}
-
-.create-session-btn.subject-btn.biology {
-  background-color: rgba(134, 239, 172, 0.93);
-  grid-column: span 1;
-}
-
-.create-session-btn.subject-btn.chemistry {
-  background-color: #f87171;
-  grid-column: span 1;
-}
-
-.create-session-btn.subject-btn.cs {
-  background-color: #fcd34d;
-  grid-column: span 1;
-}
-
-.create-session-btn.subject-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0px 6px 8px 0px rgba(0, 0, 0, 0.6);
-}
-
-.create-session-btn.subject-btn.active {
-  transform: scale(0.96);
-  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.6);
-  background-color: #047857;
-  border: none;
-  color: white;
-}
-
-/* Topics Section (Step 4) */
-.create-session-topics {
+.create-session-chip.subject-chip {
+  text-align: center;
+  border-radius: 24px;
+  min-height: 44px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.create-session-chip.subject-chip.math {
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+.create-session-chip.subject-chip.math.active {
+  background-color: rgba(96, 165, 250, 0.89);
+  border-color: rgba(96, 165, 250, 0.89);
+}
+
+.create-session-chip.subject-chip.physics {
+  border-color: rgba(184, 179, 175, 0.5);
+}
+
+.create-session-chip.subject-chip.physics.active {
+  background-color: #b8b3af;
+  border-color: #b8b3af;
+}
+
+.create-session-chip.subject-chip.biology {
+  border-color: rgba(134, 239, 172, 0.5);
+}
+
+.create-session-chip.subject-chip.biology.active {
+  background-color: rgba(134, 239, 172, 0.93);
+  border-color: rgba(134, 239, 172, 0.93);
+}
+
+.create-session-chip.subject-chip.chemistry {
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.create-session-chip.subject-chip.chemistry.active {
+  background-color: #f87171;
+  border-color: #f87171;
+}
+
+.create-session-chip.subject-chip.cs {
+  border-color: rgba(252, 211, 77, 0.5);
+}
+
+.create-session-chip.subject-chip.cs.active {
+  background-color: #fcd34d;
+  border-color: #fcd34d;
+}
+
+/* Topic Chips */
+.create-session-topic-chips {
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
-.create-session-topic-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.create-session-chip.topic-chip {
+  font-size: 14px;
+  padding: 8px 16px;
 }
 
-.create-session-checkbox {
-  width: 40px;
-  height: 32px;
-  margin-right: 10px;
-  cursor: pointer;
+.create-session-chip.topic-chip.active {
+  border-color: #10b981;
+  background-color: #10b981;
+  color: white;
 }
 
-.create-session-topic-label {
-  font-family: 'Inter', sans-serif;
-  font-weight: 300;
-  font-size: 32px;
-  color: #1e1e1e;
-  cursor: pointer;
-}
-
+/* Other Topics Input */
 .create-session-other {
   display: flex;
-  gap: 40px;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
 }
 
 .create-session-other-label {
   font-family: 'Inter', sans-serif;
-  font-weight: 300;
-  font-size: 32px;
-  color: #1e1e1e;
-  min-width: 120px;
-  flex-shrink: 0;
+  font-weight: 500;
+  font-size: 16px;
+  color: #374151;
 }
 
 .create-session-other-input-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  flex: 1;
+  gap: 8px;
 }
 
 .create-session-text-input {
   font-family: 'Open Sans', sans-serif;
-  font-weight: 600;
-  font-size: 24px;
+  font-weight: 400;
+  font-size: 14px;
   background-color: #fef7da;
-  border: none;
-  border-radius: 6px;
-  padding: 16px;
-  color: black;
+  border: 2px solid #fcd34d;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #374151;
   width: 100%;
-  min-width: 296px;
-  height: 63px;
   box-sizing: border-box;
+  transition: all 0.2s ease;
 }
 
 .create-session-text-input:focus {
-  outline: 2px solid #7d76f6;
+  outline: none;
+  border-color: #f59e0b;
+  background-color: #fffbeb;
 }
 
-.create-session-other-hint {
-  font-family: 'Inter', sans-serif;
-  font-weight: 300;
-  font-size: 24px;
-  color: #1e1e1e;
-  margin: 0;
-}
-
-.create-session-other-example {
-  font-family: 'Inter', sans-serif;
-  font-weight: 300;
-  font-size: 18px;
-  color: #666;
-  margin: 0;
-  font-style: italic;
+.create-session-text-input::placeholder {
+  color: #9ca3af;
 }
 
 /* Generate Button */
@@ -311,131 +297,155 @@
   display: flex;
   justify-content: center;
   margin-top: 20px;
-  padding-bottom: 20px;
+  padding-top: 20px;
+  border-top: 2px solid #CACFD6;
 }
 
 .create-session-generate-btn {
-  background-color: #bd83e9;
-  border: 1px solid black;
-  border-radius: 6px;
-  padding: 16px;
+  background-color: #44633F;
+  border: 2px solid #35502d;
+  border-radius: 12px;
+  padding: 14px 32px;
   width: 100%;
-  max-width: 450px;
-  height: 64px;
+  max-width: 400px;
   font-family: 'Open Sans', sans-serif;
   font-weight: 600;
-  font-size: 20px;
-  color: #374151;
+  font-size: 16px;
+  color: white;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .create-session-generate-btn:hover:not(:disabled) {
-  background-color: #a855f7;
+  background-color: #35502d;
+  border-color: #2d4327;
   transform: translateY(-2px);
-  box-shadow: 0px 6px 8px 0px rgba(0, 0, 0, 0.6);
+  box-shadow: 0px 4px 12px rgba(68, 99, 63, 0.4);
 }
 
 .create-session-generate-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
 
 .create-session-generate-btn.generating {
-  background-color: #7e22ce;
+  background-color: #2d4327;
+  border-color: #2a3d23;
   cursor: wait;
   transform: scale(0.98);
-  box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.7);
 }
 
 /* Responsive adjustments */
-@media (max-width: 1600px) {
-  .create-session-modal {
-    width: 90vw;
-    max-width: 900px;
+@media (max-width: 768px) {
+  .create-session-content {
+    padding: 20px 24px 24px 32px;
+    gap: 32px;
+  }
+
+  .create-session-step::before {
+    left: -12px;
+    width: 3px;
   }
 
   .create-session-step-title {
-    font-size: 50px;
+    font-size: 22px;
   }
 
-  .create-session-btn {
+  .create-session-step-title::after {
     font-size: 20px;
+    margin-left: 8px;
   }
-  
-  .create-session-btn.practice,
-  .create-session-btn.test {
-    min-width: 200px;
-  }
-  
-  .create-session-btn.amount-btn {
-    min-width: 120px;
-  }
-}
 
-@media (max-width: 1200px) {
-  .create-session-step-title {
-    font-size: 40px;
+  .create-session-chip {
+    font-size: 14px;
+    padding: 8px 16px;
   }
 
   .create-session-subject-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 
-  .create-session-button-group {
-    flex-wrap: wrap;
+  .create-session-chip.subject-chip {
+    font-size: 14px;
+    min-height: 40px;
   }
 
-  .create-session-btn.practice,
-  .create-session-btn.test {
-    width: 100%;
-    max-width: 337px;
+  .create-session-chip.topic-chip {
+    font-size: 13px;
+    padding: 6px 14px;
+  }
+
+  .create-session-text-input {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+
+  .create-session-other-label {
+    font-size: 14px;
+  }
+
+  .create-session-generate-btn {
+    max-width: 100%;
+    font-size: 14px;
+    padding: 12px 24px;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
+  .create-session-modal {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    min-height: 100vh;
+  }
+
   .create-session-content {
-    padding: 20px;
-    gap: 40px;
+    padding: 16px 20px 20px 24px;
+    gap: 28px;
+  }
+
+  .create-session-step::before {
+    left: -8px;
+    width: 2px;
   }
 
   .create-session-step-title {
-    font-size: 32px;
+    font-size: 20px;
   }
 
-  .create-session-btn {
+  .create-session-step-title::after {
     font-size: 18px;
-    padding: 12px;
+    margin-left: 6px;
   }
 
-  .create-session-button-group {
-    flex-direction: column;
+  .create-session-chip-group {
+    gap: 8px;
   }
 
-  .create-session-btn.practice,
-  .create-session-btn.test,
-  .create-session-btn.amount-btn,
-  .create-session-btn.subject-btn {
-    width: 100%;
-    height: auto;
+  .create-session-chip {
+    font-size: 13px;
+    padding: 8px 14px;
+    flex: 1;
+    min-width: auto;
   }
 
   .create-session-subject-grid {
     grid-template-columns: 1fr;
   }
 
-  .create-session-generate-btn {
+  .create-session-chip.subject-chip {
     width: 100%;
-    max-width: 671px;
+    min-height: 38px;
   }
 
-  .create-session-topic-label {
-    font-size: 24px;
+  .create-session-text-input {
+    font-size: 12px;
   }
 
-  .create-session-other-label {
-    font-size: 24px;
+  .create-session-generate-btn {
+    font-size: 13px;
+    padding: 10px 20px;
   }
 }

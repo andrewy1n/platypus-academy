@@ -364,7 +364,7 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           </div>
         )}
         
-        {question.explanation && (
+        {isChecked && question.explanation && (
           <div className="explanation">
             <strong>Explanation:</strong>
             <p>{question.explanation}</p>

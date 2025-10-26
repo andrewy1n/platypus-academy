@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Question } from './QuestionRenderer';
+import { formatMathExpression, formatMathAnswer } from '../utils/mathFormatter';
 import './EndSummary.css';
 
 interface QuestionWithAnswer extends Question {
@@ -11,32 +12,26 @@ interface EndSummaryProps {
   onBackToHome?: () => void;
 }
 
-// Helper function to format answers for display
-const formatAnswer = (answer: any): string => {
-  if (answer === null || answer === undefined) {
-    return 'No answer provided';
-  }
-  
-  // Handle array answers (ordering questions)
-  if (Array.isArray(answer)) {
-    return answer.join(', ');
-  }
-  
-  // Handle object answers (matching questions)
-  if (typeof answer === 'object') {
-    const pairs = Object.entries(answer).map(([key, value]) => `${key} → ${value}`);
-    return pairs.join(', ');
-  }
-  
-  // Handle string and number answers
-  if (typeof answer === 'string' || typeof answer === 'number') {
-    return String(answer);
-  }
-  
-  return 'Unknown format';
-};
+// Use the mathematical formatter for answers
+const formatAnswer = formatMathAnswer;
 
 const EndSummary: React.FC<EndSummaryProps> = ({ questions, onBackToHome }) => {
+  // State for tracking which questions are collapsed/expanded
+  // Empty set means all questions start expanded by default
+  const [collapsedQuestions, setCollapsedQuestions] = useState<Set<string>>(new Set());
+
+  // Toggle question collapse state
+  const toggleQuestion = (questionId: string) => {
+    setCollapsedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(questionId)) {
+        newSet.delete(questionId);
+      } else {
+        newSet.add(questionId);
+      }
+      return newSet;
+    });
+  };
   // Calculate statistics
   const totalQuestions = questions.length;
   const correctAnswers = questions.filter((q, index) => {
@@ -120,31 +115,44 @@ const EndSummary: React.FC<EndSummaryProps> = ({ questions, onBackToHome }) => {
                 return String(userAnswer) === String(correctAnswer);
               })();
 
+              const questionId = question.id || `question-${index}`;
+              const isCollapsed = collapsedQuestions.has(questionId);
+
               return (
-                <div key={question.id || index} className={`question-item ${isCorrect ? 'correct' : 'incorrect'}`}>
-                  <div className="question-header">
-                    <span className="question-number">Question {question.problemNumber}</span>
+                <div key={questionId} className={`question-item ${isCorrect ? 'correct' : 'incorrect'}`}>
+                  <div className="question-header" onClick={() => toggleQuestion(questionId)}>
+                    <div className="question-header-left">
+                      <span className={`collapse-triangle ${isCollapsed ? 'collapsed' : 'expanded'}`}>
+                        ▼
+                      </span>
+                      <span className="question-number">Question {question.problemNumber}</span>
+                    </div>
                     <span className={`question-status ${isCorrect ? 'correct' : 'incorrect'}`}>
                       {isCorrect ? '✓ Correct' : '✗ Incorrect'}
                     </span>
                   </div>
-                  <p className="question-text">{question.questionText}</p>
                   
-                  <div className="answer-section">
-                    <div className="answer-item">
-                      <strong>Your Answer:</strong>
-                      <span>{formatAnswer(question.userAnswer)}</span>
-                    </div>
-                    <div className="answer-item">
-                      <strong>Correct Answer:</strong>
-                      <span>{formatAnswer(question.correctAnswer)}</span>
-                    </div>
-                  </div>
+                  {!isCollapsed && (
+                    <div className="question-content">
+                      <p className="question-text">{formatMathExpression(question.questionText)}</p>
+                      
+                      <div className="answer-section">
+                        <div className="answer-item">
+                          <div className="answer-label">Your Answer:</div>
+                          <div className="answer-value">{formatAnswer(question.userAnswer)}</div>
+                        </div>
+                        <div className="answer-item">
+                          <div className="answer-label">Correct Answer:</div>
+                          <div className="answer-value">{formatAnswer(question.correctAnswer)}</div>
+                        </div>
+                      </div>
 
-                  {question.explanation && (
-                    <div className="explanation">
-                      <strong>Explanation:</strong>
-                      <p>{question.explanation}</p>
+                      {question.explanation && (
+                        <div className="explanation">
+                          <strong>Explanation:</strong>
+                          <p>{formatMathExpression(question.explanation)}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -154,9 +162,10 @@ const EndSummary: React.FC<EndSummaryProps> = ({ questions, onBackToHome }) => {
 
           {/* Actions */}
           {onBackToHome && (
-            <div className="summary-actions">
+            <div className="action-buttons">
               <button className="back-button" onClick={onBackToHome}>
-                Back to Home
+                <span className="home-icon">🏠</span>
+                <span className="button-text">Back to Home</span>
               </button>
             </div>
           )}
