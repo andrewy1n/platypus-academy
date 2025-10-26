@@ -72,21 +72,29 @@ async def stream_pipeline_execution(request: SearchRequest):
         await asyncio.sleep(0)
         
         try:
-            data = validate_step(data)
-            if data.current_step == "validate_completed":
-                validated_questions = data.validated_questions
-                await asyncio.sleep(0)
-                
-                for i, question in enumerate(validated_questions.questions, 1):
-                    question_data = question.model_dump()
-                    yield f"data: {json.dumps({'status': 'question', 'step': 'validate', 'message': f'Question {i}/{len(validated_questions.questions)}', 'data': question_data})}\n\n"
+            async for event in validate_step(data):
+                if event['type'] == 'tool_call':
+                    yield f"data: {json.dumps({'status': 'tool_call', 'step': 'validate', 'tool': event['tool'], 'args': event['args'], 'tool_id': event['id']})}\n\n"
                     await asyncio.sleep(0)
-                
-                await asyncio.sleep(0)
-            else:
-                yield f"data: {json.dumps({'status': 'error', 'step': 'validate', 'message': 'Validation failed', 'error': data.error_message})}\n\n"
-                await asyncio.sleep(0)
-                return
+                elif event['type'] == 'progress':
+                    yield f"data: {json.dumps({'status': 'progress', 'step': 'validate', 'message': event['message']})}\n\n"
+                    await asyncio.sleep(0)
+                elif event['type'] == 'complete':
+                    data = event['data']
+                    if data.current_step == "validate_completed":
+                        validated_questions = data.validated_questions
+                        await asyncio.sleep(0)
+                        
+                        for i, question in enumerate(validated_questions.questions, 1):
+                            question_data = question.model_dump()
+                            yield f"data: {json.dumps({'status': 'question', 'step': 'validate', 'message': f'Question {i}/{len(validated_questions.questions)}', 'data': question_data})}\n\n"
+                            await asyncio.sleep(0)
+                        
+                        await asyncio.sleep(0)
+                    else:
+                        yield f"data: {json.dumps({'status': 'error', 'step': 'validate', 'message': 'Validation failed', 'error': data.error_message})}\n\n"
+                        await asyncio.sleep(0)
+                        return
         except Exception as e:
             yield f"data: {json.dumps({'status': 'error', 'step': 'validate', 'message': 'Validate step failed', 'error': str(e)})}\n\n"
             return

@@ -48,6 +48,10 @@ async def stream_agent_pipeline(req: SearchRequest):
                             pass
     
     question_list = []
+
+    if not questions:
+        yield f"data: {json.dumps({'status': 'error', 'step': 'session', 'message': 'No questions found'})}\n\n"
+        return
     
     for question in questions:
         question_list.append(Question(

@@ -7,15 +7,11 @@ from langchain_core.messages import BaseMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 import requests
 import os
-import sympy as sp
-from sympy import solve, simplify
-from sympy.parsing.sympy_parser import parse_expr
+
 import asyncio
-import concurrent.futures
 from queue import Queue
 from threading import Thread
 from typing import List
-import json
 
 from agents.models.question import FR
 
@@ -23,21 +19,16 @@ load_dotenv()
 
 
 class InMemoryChatMessageHistory(BaseChatMessageHistory):
-    """In-memory chat message history store"""
-    
     def __init__(self):
         self.messages: List[BaseMessage] = []
     
     def add_message(self, message: BaseMessage) -> None:
-        """Add a message to the store"""
         self.messages.append(message)
     
     def get_messages(self) -> List[BaseMessage]:
-        """Retrieve all messages from the store"""
         return self.messages
     
     def clear(self) -> None:
-        """Clear all messages from the store"""
         self.messages = []
 
 
@@ -46,62 +37,10 @@ user_sessions = {}
 
 
 def get_session_history(session_id: str) -> InMemoryChatMessageHistory:
-    """Get or create a session history for a user"""
     if session_id not in user_sessions:
         user_sessions[session_id] = InMemoryChatMessageHistory()
     return user_sessions[session_id]
 
-
-@tool
-def solve_equation_tool(equation: str) -> str:
-    """
-    Solve a mathematical equation using SymPy.
-    
-    Args:
-        equation: Equation to solve (e.g., "x^2 + 2*x + 1 = 0")
-        
-    Returns:
-        Solutions to the equation
-    """
-    try:
-        # Parse equation (assume format: left_side = right_side)
-        if '=' in equation:
-            left, right = equation.split('=', 1)
-            left_expr = parse_expr(left.strip())
-            right_expr = parse_expr(right.strip())
-            eq = sp.Eq(left_expr, right_expr)
-        else:
-            # If no equals sign, assume it's an expression equal to 0
-            eq = parse_expr(equation)
-        
-        # Solve the equation
-        solutions = solve(eq, dict=True)
-        
-        if solutions:
-            return f"Solutions: {solutions}"
-        else:
-            return "No solutions found"
-            
-    except Exception as e:
-        return f"Error solving equation '{equation}': {str(e)}"
-
-@tool
-def simplify_expression_tool(expression: str) -> str:
-    """
-    Simplify a mathematical expression using SymPy.
-    
-    Args:
-        expression: Expression to simplify
-        
-    Returns:
-        Simplified expression
-    """
-    try:
-        expr = parse_expr(expression)
-        simplified = simplify(expr)
-        return f"Simplified expression: {expression} → {simplified}"
-    except Exception as e:
-        return f"Error simplifying expression '{expression}': {str(e)}"
 
 @tool
 def query_wolfram_alpha_tool(query: str) -> str:
@@ -162,9 +101,7 @@ class AssistantAgent:
             })
         
         self.base_tools = [
-            solve_equation_tool,
             query_wolfram_alpha_tool,
-            simplify_expression_tool,
         ]
 
         # Create the base agent
@@ -185,10 +122,8 @@ class AssistantAgent:
             You can also use other scientific and mathematical tools to fact check your reasoning before explaining anything.
 
             You have access to powerful mathematical and scientific tools:
-            - SymPy tools for symbolic mathematics (solve_equation_tool, simplify_expression_tool)
             - Wolfram|Alpha LLM API for advanced computations and scientific queries (query_wolfram_alpha_tool)
             - Use Wolfram|Alpha for complex calculations, unit conversions, scientific data
-            - Use SymPy for symbolic math, equation solving, and expression simplification
             - MCP tools from Elastic Agent Builder for advanced search and knowledge retrieval (if configured)
             
             Always validate mathematical expressions and check answer correctness when possible.

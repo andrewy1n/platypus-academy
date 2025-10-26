@@ -1,73 +1,16 @@
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.tools import tool
-from langchain_core.prompts import ChatPromptTemplate
-import json
 import requests
 import os
-import sympy as sp
-from sympy import solve, simplify
-from sympy.parsing.sympy_parser import parse_expr
 import asyncio
 from queue import Queue
 from threading import Thread
 
-from agents.models.question import FR, FRGrade, Question
-from agents.models.search import SearchRequest
+from agents.models.question import FR, FRGrade
 
 load_dotenv()
 
-
-@tool
-def solve_equation_tool(equation: str) -> str:
-    """
-    Solve a mathematical equation using SymPy.
-    
-    Args:
-        equation: Equation to solve (e.g., "x^2 + 2*x + 1 = 0")
-        
-    Returns:
-        Solutions to the equation
-    """
-    try:
-        # Parse equation (assume format: left_side = right_side)
-        if '=' in equation:
-            left, right = equation.split('=', 1)
-            left_expr = parse_expr(left.strip())
-            right_expr = parse_expr(right.strip())
-            eq = sp.Eq(left_expr, right_expr)
-        else:
-            # If no equals sign, assume it's an expression equal to 0
-            eq = parse_expr(equation)
-        
-        # Solve the equation
-        solutions = solve(eq, dict=True)
-        
-        if solutions:
-            return f"Solutions: {solutions}"
-        else:
-            return "No solutions found"
-            
-    except Exception as e:
-        return f"Error solving equation '{equation}': {str(e)}"
-
-@tool
-def simplify_expression_tool(expression: str) -> str:
-    """
-    Simplify a mathematical expression using SymPy.
-    
-    Args:
-        expression: Expression to simplify
-        
-    Returns:
-        Simplified expression
-    """
-    try:
-        expr = parse_expr(expression)
-        simplified = simplify(expr)
-        return f"Simplified expression: {expression} → {simplified}"
-    except Exception as e:
-        return f"Error simplifying expression '{expression}': {str(e)}"
 
 @tool
 def query_wolfram_alpha_tool(query: str) -> str:
@@ -118,10 +61,8 @@ class FreeResponseGraderAgent:
             Scores must be in integers between 0 and the given total points for the question.
 
             You have access to powerful mathematical and scientific tools:
-            - SymPy tools for symbolic mathematics (solve_equation_tool, simplify_expression_tool)
             - Wolfram|Alpha LLM API for advanced computations and scientific queries (query_wolfram_alpha_tool)
             - Use Wolfram|Alpha for complex calculations, unit conversions, scientific data
-            - Use SymPy for symbolic math, equation solving, and expression simplification
             
             Always validate mathematical expressions and check answer correctness when possible.
             For scientific questions, use Wolfram|Alpha to verify facts and calculations.
@@ -131,8 +72,6 @@ class FreeResponseGraderAgent:
             "openai:gpt-5-mini",
             tools=[
                 query_wolfram_alpha_tool,
-                simplify_expression_tool,
-                solve_equation_tool,
             ],
             response_format=FRGrade
         )

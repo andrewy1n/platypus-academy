@@ -105,7 +105,7 @@ class ParserAgent:
             body["capabilities"] = capabilities
         
         try:
-            response = requests.post(url, headers=headers, json=body)
+            response = requests.post(url, headers=headers, json=body, timeout=60)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -134,7 +134,7 @@ class ParserAgent:
             
             print("Sending agent chat message...")
             prompt = f"""
-                Find all questions and their corresponding images + answers(if they exist), return in json format for index: {index_name}
+                Return the JSON of a maximum of 5 questions and answers from the index (include any mentioned images URLs): {index_name}
                 Website title: {result.title}
                 Website snippet: {result.snippet}
 
@@ -159,10 +159,17 @@ class ParserAgent:
             print(f"Error processing {result.title}: {e}")
             return {"success": False, "error": str(e), "result": result}
     
-    def process_urls_parallel(self, search_results: list[SearchResult], max_workers: int = 4) -> list:
+    def process_urls_parallel(self, search_results: list[SearchResult], max_workers: int | None = None) -> list:
         print(f"Processing {len(search_results)} URLs in parallel...")
         
         practice_questions = []
+        
+        # Adaptive concurrency: IO-bound workload (HTTP + ES)
+        if max_workers is None:
+            cpu = os.cpu_count() or 4
+            max_workers = min(16, max(4, cpu * 2, len(search_results)))
+        else:
+            max_workers = min(max_workers, max(1, len(search_results)))
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_result = {

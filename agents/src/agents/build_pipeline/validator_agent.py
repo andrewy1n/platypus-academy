@@ -1,16 +1,12 @@
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.tools import tool
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_anthropic import ChatAnthropic
 from langchain.agents.structured_output import ToolStrategy
 from typing import List
 import json
 import requests
 import os
-import sympy as sp
-from sympy import solve, simplify
-from sympy.parsing.sympy_parser import parse_expr
 
 from agents.models.question import QuestionList
 from agents.models.search import SearchRequest
@@ -18,56 +14,6 @@ from agents.models.search import SearchRequest
 load_dotenv()
 
 
-@tool
-def solve_equation_tool(equation: str) -> str:
-    """
-    Solve a mathematical equation using SymPy.
-    
-    Args:
-        equation: Equation to solve (e.g., "x^2 + 2*x + 1 = 0")
-        
-    Returns:
-        Solutions to the equation
-    """
-    try:
-        # Parse equation (assume format: left_side = right_side)
-        if '=' in equation:
-            left, right = equation.split('=', 1)
-            left_expr = parse_expr(left.strip())
-            right_expr = parse_expr(right.strip())
-            eq = sp.Eq(left_expr, right_expr)
-        else:
-            # If no equals sign, assume it's an expression equal to 0
-            eq = parse_expr(equation)
-        
-        # Solve the equation
-        solutions = solve(eq, dict=True)
-        
-        if solutions:
-            return f"Solutions: {solutions}"
-        else:
-            return "No solutions found"
-            
-    except Exception as e:
-        return f"Error solving equation '{equation}': {str(e)}"
-
-@tool
-def simplify_expression_tool(expression: str) -> str:
-    """
-    Simplify a mathematical expression using SymPy.
-    
-    Args:
-        expression: Expression to simplify
-        
-    Returns:
-        Simplified expression
-    """
-    try:
-        expr = parse_expr(expression)
-        simplified = simplify(expr)
-        return f"Simplified expression: {expression} → {simplified}"
-    except Exception as e:
-        return f"Error simplifying expression '{expression}': {str(e)}"
 
 @tool
 def query_wolfram_alpha_tool(query: str) -> str:
@@ -75,8 +21,6 @@ def query_wolfram_alpha_tool(query: str) -> str:
     Query Wolfram|Alpha LLM API for mathematical and scientific computations.
     
     IMPORTANT: Use simplified keyword queries for best results.
-    - Good: "adenine thymine hydrogen bonds", "France population"
-    - Bad: "how many hydrogen bonds between adenine and thymine", "how many people in France"
     
     Args:
         query: Simplified keyword query for Wolfram|Alpha (keep it concise)
@@ -121,7 +65,7 @@ class ValidatorAgent:
         self.wolfram_app_id = os.getenv("WOLFRAM_APP_ID")
 
         model = ChatAnthropic(
-            model="claude-opus-4-1",
+            model="claude-sonnet-4-5",
         )
         self.system = """
         You are a specialized question validator agent. Your job is to:
@@ -136,7 +80,7 @@ class ValidatorAgent:
 
             Follow this workflow:
             1. First consider which questions shold be included based on the user query.
-            2. Check if the question is actually in the resource listed, you can do this by querying the elastic search index which includes
+            2. Check if those questions are actually in the resource listed, you can do this by querying the elastic search index which includes
             chunks of the parsed site.
             - If the question is not in the resource, DO NOT include the question in the output.
             3. Next, check the correctness of the answer, you can do this by using the mathematical and scientific tools.
@@ -144,10 +88,8 @@ class ValidatorAgent:
             4. If the question is valid, include it in the output.
 
             You have access to powerful mathematical and scientific tools:
-            - SymPy tools for symbolic mathematics (solve_equation_tool, simplify_expression_tool)
             - Wolfram|Alpha LLM API for advanced computations and scientific queries (query_wolfram_alpha_tool)
             - Use Wolfram|Alpha for complex calculations, unit conversions, scientific data
-            - Use SymPy for symbolic math, equation solving, and expression simplification
             
             IMPORTANT: When using Wolfram|Alpha, use SIMPLIFIED KEYWORD QUERIES:
             - Good: "adenine thymine hydrogen bonds", "speed of light", "solve x^2+5x+6=0"
@@ -163,19 +105,17 @@ class ValidatorAgent:
             model,
             system_prompt=self.system,
             tools=[
-                solve_equation_tool,
                 query_wolfram_alpha_tool,
-                simplify_expression_tool,
             ],
             response_format=ToolStrategy(QuestionList)
         )
         
     
-    def validate_questions(
+    async def validate_questions(
         self, 
         search_request: SearchRequest, 
         scrape_output: List[str], 
-    ) -> QuestionList:
+    ):
         try:
             prompt_text = f"""
             User initial query: {search_request.model_dump()}
@@ -186,9 +126,6 @@ class ValidatorAgent:
             Return the results in the QuestionList format with {search_request.num_questions_range} questions.
             """
             
-            print("🤖 Starting validation process with streaming...")
-            print("=" * 60)
-            
             questions = None
             
             for chunk in self.agent.stream(
@@ -196,45 +133,37 @@ class ValidatorAgent:
                 stream_mode="updates",
             ):
                 for step, data in chunk.items():
-                    print(f"📊 Step: {step}")
-                    
-                    # Show tool calls
+                    # Yield tool calls
                     if 'messages' in data and data['messages']:
                         message = data['messages'][-1]
                         if hasattr(message, 'tool_calls') and message.tool_calls:
-                            print("🔧 Tool Calls:")
                             for tool_call in message.tool_calls:
-                                print(f"   📞 Tool: {tool_call['name']}")
-                                print(f"   📝 Args: {tool_call['args']}")
-                                print(f"   🆔 ID: {tool_call['id']}")
-                                print("-" * 40)
-                    
-                    # Show content blocks
-                    if hasattr(message, 'content_blocks') and message.content_blocks:
-                        print("📄 Content Blocks:")
-                        for block in message.content_blocks:
-                            if block.get('type') == 'text':
-                                content = block.get('text', '')
-                                if content:
-                                    print(f"   📝 Text: {content[:200]}{'...' if len(content) > 200 else ''}")
-                        print("-" * 40)
+                                yield {
+                                    'type': 'tool_call',
+                                    'tool': tool_call['name'],
+                                    'args': tool_call['args'],
+                                    'id': tool_call['id']
+                                }
                     
                     if 'structured_response' in data:
                         questions = data['structured_response']
             
-            print("✅ Streaming completed!")
-            print("=" * 60)
-            
             if questions:
-                return questions
-            
-            # Fallback: return empty result
-            print("⚠️ No valid response found, returning empty result")
-            return QuestionList(questions=[])
+                yield {
+                    'type': 'final_response',
+                    'data': questions
+                }
+            else:
+                yield {
+                    'type': 'final_response',
+                    'data': QuestionList(questions=[])
+                }
             
         except Exception as e:
-            print(f"❌ Error in agent validation: {e}")
-            return QuestionList(questions=[])
+            yield {
+                'type': 'error',
+                'message': f"Error in agent validation: {str(e)}"
+            }
 
 def main():
     sample_scrape_output = [
@@ -275,13 +204,25 @@ def main():
     )
     
     print("Using LangChain agent to validate questions...")
-    validated_questions = validator.validate_questions(
-        search_request=search_request, 
-        scrape_output=sample_scrape_output
-    )
     
-
-    print(validated_questions)
+    async def test_validation():
+        async for event in validator.validate_questions(
+            search_request=search_request, 
+            scrape_output=sample_scrape_output
+        ):
+            if event['type'] == 'tool_call':
+                print(f"🔧 Tool Call: {event['tool']}")
+                print(f"   Args: {event['args']}")
+                print(f"   ID: {event['id']}")
+                print("-" * 40)
+            elif event['type'] == 'final_response':
+                print("✅ Final Response:")
+                print(event['data'])
+            elif event['type'] == 'error':
+                print(f"❌ Error: {event['message']}")
+    
+    import asyncio
+    asyncio.run(test_validation())
 
 if __name__ == "__main__":
     main()

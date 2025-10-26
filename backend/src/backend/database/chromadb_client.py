@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from ..models.session import Session
 from ..models.question import Question
 from ..models.user import User
+from ..models.assistant import AssistantConversation
 
 class ChromaDBClient:
     def __init__(self, persist_directory: str = "./chroma_db"):
@@ -29,6 +30,11 @@ class ChromaDBClient:
         self.questions_collection = self.client.get_or_create_collection(
             name="questions",
             metadata={"description": "Store question data"}
+        )
+        
+        self.assistant_history_collection = self.client.get_or_create_collection(
+            name="assistant_history",
+            metadata={"description": "Store assistant conversation history"}
         )
 
     def add_user(self, user: User) -> None:
@@ -269,6 +275,82 @@ class ChromaDBClient:
                 "points": question_data["points"],
             }]
         )
+
+    def add_assistant_conversation(self, conversation: AssistantConversation) -> None:
+        conversation_dict = conversation.model_dump()
+        conversation_dict['created_at'] = conversation_dict['created_at'].isoformat()
+        conversation_dict['updated_at'] = conversation_dict['updated_at'].isoformat()
+        
+        # Convert messages to serializable format
+        for message in conversation_dict['messages']:
+            message['timestamp'] = message['timestamp'].isoformat()
+        
+        self.assistant_history_collection.add(
+            ids=[conversation.id],
+            documents=[json.dumps(conversation_dict)],
+            metadatas=[{
+                "user_id": conversation.user_id,
+                "question_id": conversation.question_id,
+                "session_id": conversation.session_id,
+                "created_at": conversation_dict['created_at'],
+                "updated_at": conversation_dict['updated_at']
+            }]
+        )
+
+    def get_assistant_conversation(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+        result = self.assistant_history_collection.get(
+            ids=[conversation_id],
+            include=["documents", "metadatas"]
+        )
+        
+        if result["ids"]:
+            return json.loads(result["documents"][0])
+        return None
+
+    def update_assistant_conversation(self, conversation_id: str, conversation: AssistantConversation) -> None:
+        conversation_dict = conversation.model_dump()
+        conversation_dict['created_at'] = conversation_dict['created_at'].isoformat()
+        conversation_dict['updated_at'] = conversation_dict['updated_at'].isoformat()
+        
+        # Convert messages to serializable format
+        for message in conversation_dict['messages']:
+            message['timestamp'] = message['timestamp'].isoformat()
+        
+        self.assistant_history_collection.update(
+            ids=[conversation_id],
+            documents=[json.dumps(conversation_dict)],
+            metadatas=[{
+                "user_id": conversation.user_id,
+                "question_id": conversation.question_id,
+                "session_id": conversation.session_id,
+                "created_at": conversation_dict['created_at'],
+                "updated_at": conversation_dict['updated_at']
+            }]
+        )
+
+    def get_assistant_conversations_by_user(self, user_id: str) -> List[Dict[str, Any]]:
+        result = self.assistant_history_collection.get(
+            where={"user_id": user_id},
+            include=["documents", "metadatas"]
+        )
+        
+        return [json.loads(doc) for doc in result["documents"]]
+
+    def get_assistant_conversations_by_question(self, question_id: str) -> List[Dict[str, Any]]:
+        result = self.assistant_history_collection.get(
+            where={"question_id": question_id},
+            include=["documents", "metadatas"]
+        )
+        
+        return [json.loads(doc) for doc in result["documents"]]
+
+    def get_assistant_conversations_by_session(self, session_id: str) -> List[Dict[str, Any]]:
+        result = self.assistant_history_collection.get(
+            where={"session_id": session_id},
+            include=["documents", "metadatas"]
+        )
+        
+        return [json.loads(doc) for doc in result["documents"]]
 
 db_client = ChromaDBClient()
 

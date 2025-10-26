@@ -79,41 +79,64 @@ async def parse_step(data: PipelineData):
         data.current_step = "parse_failed"
         yield {'type': 'complete', 'data': data}
 
-def validate_step(data: PipelineData) -> PipelineData:
+async def validate_step(data: PipelineData):
     """
-    Step 3: Use ValidatorAgent to validate and structure questions
+    Step 3: Use ValidatorAgent to validate and structure questions - yields progress updates
     """
     try:
-        print("\n✅ STEP 3: VALIDATING QUESTIONS")
-        print("=" * 60)
-        
         if not data.parsed_results:
-            print("❌ No parsed results to validate")
             data.error_message = "No parsed results available for validation"
             data.current_step = "validate_failed"
-            return data
+            yield {'type': 'complete', 'data': data}
+            return
         
-        # Initialize validator agent
         validator = ValidatorAgent()
         
-        print(f"📊 Validating {len(data.parsed_results)} question sets...")
+        yield {
+            'type': 'progress',
+            'message': f'Validating {len(data.parsed_results)} question sets...',
+            'total': len(data.parsed_results)
+        }
         
         # Validate questions
-        validated_questions = validator.validate_questions(
+        validated_questions = None
+        async for event in validator.validate_questions(
             search_request=data.search_request,
             scrape_output=data.parsed_results,
-        )
+        ):
+            if event['type'] == 'tool_call':
+                yield {
+                    'type': 'tool_call',
+                    'tool': event['tool'],
+                    'args': event['args'],
+                    'id': event['id']
+                }
+            elif event['type'] == 'final_response':
+                validated_questions = event['data']
+            elif event['type'] == 'error':
+                data.error_message = event['message']
+                data.current_step = "validate_failed"
+                yield {'type': 'complete', 'data': data}
+                return
         
-        print(f"✅ Validation completed. Generated {len(validated_questions.questions)} validated questions")
+        if validated_questions:
+            yield {
+                'type': 'progress',
+                'message': f'Validation completed. Generated {len(validated_questions.questions)} validated questions'
+            }
+        else:
+            data.error_message = "No validated questions generated"
+            data.current_step = "validate_failed"
+            yield {'type': 'complete', 'data': data}
+            return
         
         # Update data
         data.validated_questions = validated_questions
         data.current_step = "validate_completed"
         
-        return data
+        yield {'type': 'complete', 'data': data}
         
     except Exception as e:
-        print(f"❌ Error in validate step: {e}")
         data.error_message = f"Validate step failed: {str(e)}"
         data.current_step = "validate_failed"
-        return data
+        yield {'type': 'complete', 'data': data}

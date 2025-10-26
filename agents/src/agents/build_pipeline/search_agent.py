@@ -58,28 +58,11 @@ class SearchAgent:
         self.temperature = temperature
         self.model = model
         
-        self.chat = ChatPerplexity(temperature=temperature, model=model)
-        
-        self.perplexity_system_prompt = """You are a helpful assistant that can search the web for information. 
-            MAKE SURE TO INCLUDE URL LINKS IN YOUR RESPONSE.
-
-            Return your answer in machine readable JSON format.
-            """
-        self.human = "{input}"
-        self.prompt = ChatPromptTemplate.from_messages([("system", self.perplexity_system_prompt), ("human", self.human)])
-        
-        self.chat_pipeline = self.prompt | self.chat
+        self.chat = ChatPerplexity(temperature=0.2, model=model)
         
         self.system_prompt = """
             You are a search agent that can search the web for information.
-            You have access to the search_perplexity_tool tool to search the web for information.
-            You will be given a query and you need to return the search results in JSON format.
-            You will need to include the URL links in your response.
-
             For each query find 4 URLs that are relevant to the query.
-
-            DO NOT call the perplexity tool too many times, make sure to request links in your tool.
-
             Prefer OER (Open Educational Resources) websites over commercial websites.
             Example OER websites:
                 - OpenStax
@@ -88,6 +71,12 @@ class SearchAgent:
                 - Saylor Academy
             Return your answer in machine readable JSON format.
         """
+        self.human = "{input}"
+        self.prompt = ChatPromptTemplate.from_messages([("system", self.system_prompt), ("human", self.human)])
+        
+        # Use structured output with the chat pipeline
+        self.chat_pipeline = self.prompt | self.chat.with_structured_output(SearchResults)
+    
 
         model = ChatAnthropic(
             model="claude-sonnet-4-5",
@@ -102,75 +91,23 @@ class SearchAgent:
     
     async def invoke(self, search_request: SearchRequest):
         try:
-            query = f"Find URLs to {search_request.subject} {search_request.topics} textbooks with practice questions, return your answer in JSON format. Prefer website links over pdf links."
+            query = (
+                f"Find URLs to {search_request.subject} {search_request.topics} textbooks "
+                f"with practice questions. Prefer website links over pdf links. "
+                f"Return exactly 4 search results with 'title', 'url', and 'snippet' fields."
+            )
             
-            search_results = None
-            queue = Queue()
-            sentinel = object()
-            
-            def _stream_agent():
-                try:
-                    for chunk in self.agent.stream(
-                        {"messages": [{"role": "user", "content": query}]},
-                        stream_mode="updates",
-                    ):
-                        queue.put(chunk)
-                except Exception as e:
-                    queue.put(('error', e))
-                finally:
-                    queue.put(sentinel)
-            
-            thread = Thread(target=_stream_agent, daemon=True)
-            thread.start()
-            
-            while True:
-                await asyncio.sleep(0.01)
-                
-                if not queue.empty():
-                    item = queue.get()
-                    
-                    if item is sentinel:
-                        break
-                    
-                    if isinstance(item, tuple) and item[0] == 'error':
-                        yield {
-                            'type': 'error',
-                            'message': f"Error in search: {str(item[1])}"
-                        }
-                        break
-                    
-                    chunk = item
-                    for step, data in chunk.items():
-                        if 'messages' in data and data['messages']:
-                            message = data['messages'][-1]
-                            
-                            if hasattr(message, 'tool_calls') and message.tool_calls:
-                                for tool_call in message.tool_calls:
-                                    yield {
-                                        'type': 'tool_call',
-                                        'tool': tool_call['name'],
-                                        'args': tool_call['args'],
-                                        'id': tool_call['id']
-                                    }
-                        
-                        if 'structured_response' in data:
-                            search_results = data['structured_response']
-            
-            if search_results:
-                yield {
-                    'type': 'final_response',
-                    'data': search_results
-                }
-            else:
-                yield {
-                    'type': 'final_response',
-                    'data': SearchResults(search_results=[])
-                }
-            
+            # Call Perplexity with structured output
+            results = self.chat_pipeline.invoke({"input": query})
+
+            yield {
+                "type": "final_response",
+                "data": results,
+            }
         except Exception as e:
             yield {
-                'type': 'error',
-                'message': f"Error during search: {str(e)}"
+                "type": "error",
+                "message": f"Error during search: {str(e)}",
             }
     
     def print_results(self, results: SearchResults):
@@ -193,32 +130,33 @@ class SearchAgent:
             print("-" * 30)
 
 def main():
-    print("🤖 Initializing SearchAgent...")
-    search_agent = SearchAgent()
-    print("✅ SearchAgent initialized successfully")
-    print("=" * 60)
-    
-    # Test query
-    test_query = "Find URLs to biology DNA replication textbooks with practice questions, return your answer in JSON format. Prefer website links over pdf links."
-    
-    print("🔍 Starting search process...")
-    print("=" * 60)
-    
-    # Perform search with streaming
-    results = search_agent.invoke(SearchRequest(
-        subject="Biology",
-        topics=["DNA replication"],
-        num_questions_range=(2, 4),
-        mode="practice"
-    ))
-    
-    # Print results
-    search_agent.print_results(results)
-    
-    print("\n" + "=" * 60)
-    print("🎉 Search completed successfully!")
-    print(f"📊 Total results found: {len(results.search_results)}")
-    print("=" * 60)
+    import asyncio
+
+    async def _run():
+        print("🤖 Initializing SearchAgent...")
+        search_agent = SearchAgent(temperature=0.2, model="sonar")
+        print("✅ SearchAgent initialized successfully")
+        print("=" * 60)
+
+        print("🔍 Starting search process...")
+        print("=" * 60)
+
+        async for event in search_agent.invoke(SearchRequest(
+            subject="Biology",
+            topics=["DNA replication"],
+            num_questions_range=(2, 4),
+            mode="practice"
+        )):
+            if event["type"] == "final_response":
+                search_agent.print_results(event["data"])
+                print("\n" + "=" * 60)
+                print("🎉 Search completed successfully!")
+                print(f"📊 Total results found: {len(event['data'].search_results)}")
+                print("=" * 60)
+            elif event["type"] == "error":
+                print(f"❌ Error: {event['message']}")
+
+    asyncio.run(_run())
 
 if __name__ == "__main__":
     main()
