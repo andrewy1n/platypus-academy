@@ -13,7 +13,8 @@ export const mockCalculusQuestions: Question[] = [
       '6x² + 5',
       '3x² + 5'
     ],
-    explanation: 'To find the derivative, apply the power rule: d/dx(3x²) = 6x, d/dx(5x) = 5, and d/dx(-2) = 0. Therefore, f′(x) = 6x + 5.'
+    explanation: 'To find the derivative, apply the power rule: d/dx(3x²) = 6x, d/dx(5x) = 5, and d/dx(-2) = 0. Therefore, f′(x) = 6x + 5.',
+    sourceLink: 'https://openstax.org/books/college-calculus-2e/pages/3-practice-test'
   },
   {
     id: 'mock-2',
@@ -21,7 +22,8 @@ export const mockCalculusQuestions: Question[] = [
     questionText: 'The limit of (sin x)/x as x approaches 0 equals 1.',
     questionType: 'tf',
     correctAnswer: true,
-    explanation: 'This is a fundamental limit in calculus, often proven using L\'Hôpital\'s Rule or the squeeze theorem. As x approaches 0, sin(x)/x approaches 1.'
+    explanation: 'This is a fundamental limit in calculus, often proven using L\'Hôpital\'s Rule or the squeeze theorem. As x approaches 0, sin(x)/x approaches 1.',
+    sourceLink: 'https://openstax.org/books/college-calculus-2e/pages/3-practice-test'
   },
   {
     id: 'mock-3',
@@ -29,7 +31,8 @@ export const mockCalculusQuestions: Question[] = [
     questionText: 'Evaluate the definite integral: ∫₀² (2x + 1) dx',
     questionType: 'numeric',
     correctAnswer: 6,
-    explanation: 'Find the antiderivative: ∫(2x + 1) dx = x² + x + C. Evaluate from 0 to 2: (2² + 2) - (0² + 0) = 6 - 0 = 6.'
+    explanation: 'Find the antiderivative: ∫(2x + 1) dx = x² + x + C. Evaluate from 0 to 2: (2² + 2) - (0² + 0) = 6 - 0 = 6.',
+    sourceLink: 'https://openstax.org/books/college-calculus-2e/pages/3-practice-test'
   },
   {
     id: 'mock-4',
@@ -37,7 +40,8 @@ export const mockCalculusQuestions: Question[] = [
     questionText: 'The second derivative of f is called the _____ derivative.',
     questionType: 'fib',
     correctAnswer: 'second',
-    explanation: 'The second derivative is simply the derivative of the first derivative, often denoted as f″ or d²f/dx².'
+    explanation: 'The second derivative is simply the derivative of the first derivative, often denoted as f″ or d²f/dx².',
+    sourceLink: 'https://openstax.org/books/college-calculus-2e/pages/3-practice-test'
   },
   {
     id: 'mock-5',
@@ -51,7 +55,8 @@ export const mockCalculusQuestions: Question[] = [
       'The value a function approaches as input approaches some value'
     ],
     correctAnswer: [[0, 0], [1, 1], [2, 2]],
-    explanation: 'Derivatives measure instantaneous rates of change, integrals compute the accumulation (like area under curves), and limits describe the behavior of functions as inputs approach specific values.'
+    explanation: 'Derivatives measure instantaneous rates of change, integrals compute the accumulation (like area under curves), and limits describe the behavior of functions as inputs approach specific values.',
+    sourceLink: 'https://openstax.org/books/college-calculus-2e/pages/3-practice-test'
   },
   {
     id: 'mock-6',
@@ -70,7 +75,8 @@ export const mockCalculusQuestions: Question[] = [
       'Multiply by the derivative of the inner function',
       'Simplify the result'
     ],
-    explanation: 'The chain rule states: (f(g(x)))′ = f′(g(x)) · g′(x). First identify the functions, then apply the rule by taking the outer derivative and multiplying by the inner derivative.'
+    explanation: 'The chain rule states: (f(g(x)))′ = f′(g(x)) · g′(x). First identify the functions, then apply the rule by taking the outer derivative and multiplying by the inner derivative.',
+    sourceLink: 'https://openstax.org/books/college-calculus-2e/pages/3-practice-test'
   },
   {
     id: 'mock-7',
@@ -80,12 +86,22 @@ export const mockCalculusQuestions: Question[] = [
     correctAnswer: 'Integration by parts uses the formula ∫udv = uv - ∫vdu. Let u = x and dv = eˣ dx, then du = dx and v = eˣ. The result is xeˣ - eˣ + C.',
     points: 10,
     rubric: 'Student should identify u and dv, find du and v, apply the integration by parts formula, and include the constant of integration.',
-    explanation: 'Integration by parts is based on the product rule for derivatives. Choose u to be the part that simplifies when differentiated (here, x), and dv to be easily integrable (here, eˣ). After applying the formula ∫udv = uv - ∫vdu, you get xeˣ - eˣ + C.'
+    explanation: 'Integration by parts is based on the product rule for derivatives. Choose u to be the part that simplifies when differentiated (here, x), and dv to be easily integrable (here, eˣ). After applying the formula ∫udv = uv - ∫vdu, you get xeˣ - eˣ + C.',
+    sourceLink: 'https://openstax.org/books/college-calculus-2e/pages/3-practice-test'
   }
 ];
 
 export const createMockSession = (): string => {
   const sessionId = `mock-session-${Date.now()}`;
+  
+  // Clear any old mock sessions to ensure we get fresh data with sourceLink
+  const keys = Object.keys(sessionStorage);
+  keys.forEach(key => {
+    if (key.startsWith('mock-questions-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+  
   // Store mock questions in sessionStorage for retrieval
   sessionStorage.setItem(`mock-questions-${sessionId}`, JSON.stringify(mockCalculusQuestions));
   return sessionId;
@@ -93,8 +109,17 @@ export const createMockSession = (): string => {
 
 export const getMockQuestions = (sessionId: string): Question[] => {
   const stored = sessionStorage.getItem(`mock-questions-${sessionId}`);
+  
   if (stored) {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    
+    // Check if the stored questions have sourceLink, if not, return fresh questions
+    if (!parsed[0]?.sourceLink) {
+      return mockCalculusQuestions;
+    }
+    
+    return parsed;
   }
+  
   return mockCalculusQuestions;
 };

@@ -68,7 +68,7 @@ export interface Question {
   points_earned?: number;
 }
 
-export interface QuestionData extends Omit<Question, 'is_completed'> {
+export interface QuestionWithOptionalCompletion extends Omit<Question, 'is_completed'> {
   is_completed?: boolean;
 }
 

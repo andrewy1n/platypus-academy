@@ -337,6 +337,85 @@
   transform: scale(0.98);
 }
 
+/* Agent Logs Styling */
+.create-session-logs-container {
+  margin-top: 24px;
+  padding: 0;
+  animation: slideInUp 0.3s ease-out;
+}
+
+/* Log Status Messages - Exact Status Message Styling */
+.log-status-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin: 8px 0;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 12px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  animation: slideInUp 0.3s ease-out, pulse 2s ease-in-out infinite;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.log-status-message.latest {
+  animation: slideInUp 0.3s ease-out, pulse 2s ease-in-out infinite;
+}
+
+.log-status-message.typing {
+  opacity: 0.7;
+}
+
+.log-status-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+/* Typing Indicator for Status Messages */
+.log-typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.log-typing-indicator span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: white;
+  animation: typing 1.4s infinite ease-in-out;
+}
+
+.log-typing-indicator span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.log-typing-indicator span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .create-session-content {
@@ -390,6 +469,15 @@
     max-width: 100%;
     font-size: 14px;
     padding: 12px 24px;
+  }
+
+  .create-session-logs-container {
+    margin-top: 20px;
+  }
+
+  .log-status-message {
+    font-size: 12px;
+    padding: 6px 12px;
   }
 }
 
@@ -447,5 +535,14 @@
   .create-session-generate-btn {
     font-size: 13px;
     padding: 10px 20px;
+  }
+
+  .create-session-logs-container {
+    margin-top: 16px;
+  }
+
+  .log-status-message {
+    font-size: 11px;
+    padding: 5px 10px;
   }
 }

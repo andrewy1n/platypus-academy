@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './QuestionRenderer.css';
+import SourceModal from './SourceModal';
 
 // Question Types based on backend models
 export type QuestionType = 'mcq' | 'tf' | 'numeric' | 'fib' | 'matching' | 'ordering' | 'fr';
@@ -18,6 +19,7 @@ export interface Question {
   points?: number; // For FR
   rubric?: string; // For FR
   imageUrl?: string;
+  sourceLink?: string; // Source URL for the question
 }
 
 interface QuestionRendererProps {
@@ -41,6 +43,7 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [matchingAnswers, setMatchingAnswers] = useState<{[key: string]: string}>(userAnswer || {});
   const [orderedItems, setOrderedItems] = useState<string[]>(userAnswer || question.choices || []);
+  const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
 
   // Sync state when userAnswer prop changes
   useEffect(() => {
@@ -317,9 +320,17 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
   return (
     <div className="question-renderer">
       <div className="question-header">
-        {question.problemNumber && (
-          <span className="question-number">Question {question.problemNumber}</span>
-        )}
+        <div className="question-header-left">
+          {question.problemNumber && (
+            <button 
+              className="question-number-button"
+              onClick={() => setIsSourceModalOpen(true)}
+              title="View source"
+            >
+              Question {question.problemNumber}
+            </button>
+          )}
+        </div>
         <span className="question-type-badge">{question.questionType.toUpperCase()}</span>
       </div>
       
@@ -373,6 +384,15 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
           </div>
         )}
       </div>
+      
+      {question.sourceLink && (
+        <SourceModal
+          isOpen={isSourceModalOpen}
+          onClose={() => setIsSourceModalOpen(false)}
+          sourceLink={question.sourceLink}
+          questionNumber={question.problemNumber || 0}
+        />
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 'use client'
 
 import { useParams, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import PracticeWithChat from '../../../components/PracticeWithChat'
 import QuestionRenderer, { Question } from '../../../components/QuestionRenderer'
 import EndSummary from '../../../components/EndSummary'
@@ -12,14 +12,14 @@ import { getMockQuestions } from '../../../services/mockQuestionService'
 import './page.css'
 
 interface PracticePageProps {
-  params: {
+  params: Promise<{
     sessionId: string
-  }
+  }>
 }
 
 export default function PracticePage({ params }: PracticePageProps) {
   const router = useRouter()
-  const { sessionId } = params
+  const { sessionId } = use(params)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [questions, setQuestions] = useState<Question[]>([])
   const [userAnswers, setUserAnswers] = useState<{ [key: string]: any }>({})

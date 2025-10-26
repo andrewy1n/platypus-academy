@@ -140,12 +140,6 @@ export default function ChatSidebar() {
               className={`chat-message ${message.sender} ${message.isInitialGreeting ? 'initial-greeting' : ''}`}
             >
               <div className="message-content">
-                {message.isInitialGreeting && (
-                  <div className="greeting-header">
-                    <div className="tutor-avatar">🎓</div>
-                    <div className="tutor-title">Your AI Tutor</div>
-                  </div>
-                )}
                 <div 
                   className={`message-text ${message.isInitialGreeting ? 'greeting-text' : ''}`}
                   style={{ whiteSpace: 'pre-wrap' }}
