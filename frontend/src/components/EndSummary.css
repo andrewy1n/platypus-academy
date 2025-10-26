@@ -254,11 +254,11 @@
 }
 
 .collapse-triangle.expanded {
-  transform: rotate(0deg);
+  transform: rotate(90deg);
 }
 
 .collapse-triangle.collapsed {
-  transform: rotate(-90deg);
+  transform: rotate(0deg);
 }
 
 .question-content {

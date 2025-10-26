@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Question } from './QuestionRenderer';
 import { formatMathExpression, formatMathAnswer } from '../utils/mathFormatter';
 import './EndSummary.css';
@@ -17,8 +17,18 @@ const formatAnswer = formatMathAnswer;
 
 const EndSummary: React.FC<EndSummaryProps> = ({ questions, onBackToHome }) => {
   // State for tracking which questions are collapsed/expanded
-  // Empty set means all questions start expanded by default
+  // Initialize with all questions collapsed by default
   const [collapsedQuestions, setCollapsedQuestions] = useState<Set<string>>(new Set());
+
+  // Set all questions as collapsed when component mounts
+  useEffect(() => {
+    const allQuestionIds = new Set<string>();
+    questions.forEach((question, index) => {
+      const questionId = question.id || `question-${index}`;
+      allQuestionIds.add(questionId);
+    });
+    setCollapsedQuestions(allQuestionIds);
+  }, [questions]);
 
   // Toggle question collapse state
   const toggleQuestion = (questionId: string) => {

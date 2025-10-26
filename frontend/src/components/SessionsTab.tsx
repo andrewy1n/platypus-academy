@@ -58,9 +58,9 @@ export default function SessionsTab({
       progress: 100,
       totalQuestions: 6,
       completedQuestions: 6,
-      totalScore: 88,
+      totalScore: 50,
       totalPoints: 60,
-      pointsEarned: 52.5,
+      pointsEarned: 30,
       createdAt: new Date('2024-01-15'),
       lastAccessed: new Date('2024-01-20'),
       questions: [
@@ -83,12 +83,12 @@ export default function SessionsTab({
           type: 'problem-solving',
           difficulty: 'hard',
           isCompleted: true,
-          isCorrect: false,
-          pointsEarned: 5,
+          isCorrect: true,
+          pointsEarned: 10,
           maxPoints: 10,
-          studentAnswer: 'cos(3x²+1)',
+          studentAnswer: '6x cos(3x²+1)',
           correctAnswer: '6x cos(3x²+1)',
-          explanation: 'You forgot to multiply by the derivative of the inner function (3x²+1). The chain rule requires multiplying by 6x.'
+          explanation: 'Perfect! You correctly applied the chain rule by multiplying the derivative of the outer function by the derivative of the inner function.'
         },
         {
           id: 'q3',
@@ -96,12 +96,12 @@ export default function SessionsTab({
           type: 'problem-solving',
           difficulty: 'medium',
           isCompleted: true,
-          isCorrect: true,
-          pointsEarned: 10,
+          isCorrect: false,
+          pointsEarned: 0,
           maxPoints: 10,
           studentAnswer: '21',
           correctAnswer: '21',
-          explanation: 'Perfect! You correctly evaluated ∫₁⁴ x² dx = [x³/3]₁⁴ = 64/3 - 1/3 = 21.'
+          explanation: 'Check your calculation again. You should evaluate ∫₁⁴ x² dx = [x³/3]₁⁴ = 64/3 - 1/3 = 63/3 = 21.'
         },
         {
           id: 'q4',
@@ -109,12 +109,12 @@ export default function SessionsTab({
           type: 'problem-solving',
           difficulty: 'medium',
           isCompleted: true,
-          isCorrect: true,
-          pointsEarned: 10,
+          isCorrect: false,
+          pointsEarned: 5,
           maxPoints: 10,
-          studentAnswer: '2x/(x² + 1)',
+          studentAnswer: '1/(x² + 1)',
           correctAnswer: '2x/(x² + 1)',
-          explanation: 'Excellent! You correctly applied the chain rule for logarithmic functions.'
+          explanation: 'You forgot to multiply by the derivative of the inner function (x² + 1). The chain rule gives us: f\'(x) = (1/(x² + 1)) · 2x = 2x/(x² + 1).'
         },
         {
           id: 'q5',
@@ -123,11 +123,11 @@ export default function SessionsTab({
           difficulty: 'hard',
           isCompleted: true,
           isCorrect: false,
-          pointsEarned: 7.5,
+          pointsEarned: 3,
           maxPoints: 10,
-          studentAnswer: 'Local minimum at x = 1, local maximum at x = -1',
+          studentAnswer: 'No local extrema',
           correctAnswer: 'Local minimum at x = 1, local maximum at x = -1',
-          explanation: 'You identified the critical points correctly, but you need to use the second derivative test to confirm they are extrema.'
+          explanation: 'You need to find critical points by setting f\'(x) = 0. The derivative is 3x² - 3 = 3(x² - 1) = 3(x-1)(x+1), so x = 1 and x = -1 are critical points. Use the second derivative test to determine they are extrema.'
         },
         {
           id: 'q6',
