@@ -348,26 +348,28 @@ const QuestionRenderer: React.FC<QuestionRendererProps> = ({
         
         {isChecked && (
           <div className={`answer-feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
-            <div className="feedback-icon">
-              {isCorrect ? '✓' : '✗'}
+            <div className="feedback-header">
+              <div className="feedback-icon">
+                {isCorrect ? '✓' : '✗'}
+              </div>
+              <div className="feedback-text">
+                {isCorrect ? 'Correct!' : 'Incorrect. Try again.'}
+              </div>
             </div>
-            <div className="feedback-text">
-              {isCorrect ? 'Correct!' : 'Incorrect. Try again.'}
-            </div>
-          </div>
-        )}
-        
-        {showCorrectAnswer && (
-          <div className="correct-answer">
-            <strong>Correct Answer:</strong>
-            <span>{JSON.stringify(question.correctAnswer)}</span>
-          </div>
-        )}
-        
-        {isChecked && question.explanation && (
-          <div className="explanation">
-            <strong>Explanation:</strong>
-            <p>{question.explanation}</p>
+            
+            {question.explanation && (
+              <div className="feedback-explanation">
+                <strong>Explanation:</strong>
+                <p>{question.explanation}</p>
+              </div>
+            )}
+            
+            {showCorrectAnswer && (
+              <div className="feedback-correct-answer">
+                <strong>Correct Answer:</strong>
+                <span>{JSON.stringify(question.correctAnswer)}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
