@@ -1,0 +1,441 @@
+.create-session-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #f8f5e9;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 50px 0;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.create-session-modal {
+  background-color: white;
+  border: 1px solid #8e8e93;
+  border-radius: 16px;
+  width: 700px;
+  max-width: calc(100vw - 40px);
+  min-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0px 8px 24px 0px rgba(0, 0, 0, 0.15);
+}
+
+.create-session-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 20;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 16px 16px 0 0;
+}
+
+.create-session-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.create-session-close:hover {
+  opacity: 0.7;
+}
+
+.create-session-content {
+  padding: 32px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.create-session-step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.create-session-step-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 36px;
+  color: #1e1e1e;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* Button Base Styles */
+.create-session-btn {
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 600;
+  font-size: 24px;
+  border: none;
+  border-radius: 6px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.5);
+}
+
+.create-session-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Session Type Buttons (Step 1) */
+.create-session-button-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.create-session-btn.practice {
+  background-color: #10b981;
+  color: white;
+  min-width: 220px;
+  width: calc(50% - 10px);
+  height: 64px;
+  flex: 1;
+}
+
+.create-session-btn.practice:hover {
+  background-color: #059669;
+}
+
+.create-session-btn.test {
+  background-color: #10b981;
+  color: white;
+  min-width: 220px;
+  width: calc(50% - 10px);
+  height: 64px;
+  flex: 1;
+}
+
+.create-session-btn.test:hover {
+  background-color: #059669;
+}
+
+.create-session-btn.active.practice,
+.create-session-btn.active.test {
+  transform: scale(0.96);
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.6);
+  background-color: #047857;
+  border: none;
+}
+
+/* Question Amount Buttons (Step 2) */
+.create-session-btn.amount-btn {
+  height: 56px;
+  color: white;
+  min-width: 100px;
+  width: calc(33.333% - 8px);
+  flex: 1;
+}
+
+.create-session-btn.amount-btn:first-of-type {
+  background-color: rgba(165, 180, 252, 0.96);
+}
+
+.create-session-btn.amount-btn:nth-of-type(2) {
+  background-color: #c4b5fd;
+}
+
+.create-session-btn.amount-btn:nth-of-type(3) {
+  background-color: #c4b5fd;
+}
+
+.create-session-btn.amount-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0px 6px 8px 0px rgba(0, 0, 0, 0.6);
+}
+
+.create-session-btn.amount-btn.active {
+  transform: scale(0.96);
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.6);
+  background-color: #047857;
+  border: none;
+  color: white;
+}
+
+/* Subject Buttons (Step 3) */
+.create-session-subject-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.create-session-btn.subject-btn {
+  height: 56px;
+  color: white;
+}
+
+.create-session-btn.subject-btn.math {
+  background-color: rgba(96, 165, 250, 0.89);
+  grid-column: span 1;
+}
+
+.create-session-btn.subject-btn.physics {
+  background-color: #b8b3af;
+  grid-column: span 1;
+}
+
+.create-session-btn.subject-btn.biology {
+  background-color: rgba(134, 239, 172, 0.93);
+  grid-column: span 1;
+}
+
+.create-session-btn.subject-btn.chemistry {
+  background-color: #f87171;
+  grid-column: span 1;
+}
+
+.create-session-btn.subject-btn.cs {
+  background-color: #fcd34d;
+  grid-column: span 1;
+}
+
+.create-session-btn.subject-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0px 6px 8px 0px rgba(0, 0, 0, 0.6);
+}
+
+.create-session-btn.subject-btn.active {
+  transform: scale(0.96);
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.6);
+  background-color: #047857;
+  border: none;
+  color: white;
+}
+
+/* Topics Section (Step 4) */
+.create-session-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.create-session-topic-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.create-session-checkbox {
+  width: 40px;
+  height: 32px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+.create-session-topic-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 32px;
+  color: #1e1e1e;
+  cursor: pointer;
+}
+
+.create-session-other {
+  display: flex;
+  gap: 40px;
+}
+
+.create-session-other-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 32px;
+  color: #1e1e1e;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.create-session-other-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.create-session-text-input {
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 600;
+  font-size: 24px;
+  background-color: #fef7da;
+  border: none;
+  border-radius: 6px;
+  padding: 16px;
+  color: black;
+  width: 100%;
+  min-width: 296px;
+  height: 63px;
+  box-sizing: border-box;
+}
+
+.create-session-text-input:focus {
+  outline: 2px solid #7d76f6;
+}
+
+.create-session-other-hint {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 24px;
+  color: #1e1e1e;
+  margin: 0;
+}
+
+.create-session-other-example {
+  font-family: 'Inter', sans-serif;
+  font-weight: 300;
+  font-size: 18px;
+  color: #666;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Generate Button */
+.create-session-generate-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  padding-bottom: 20px;
+}
+
+.create-session-generate-btn {
+  background-color: #bd83e9;
+  border: 1px solid black;
+  border-radius: 6px;
+  padding: 16px;
+  width: 100%;
+  max-width: 450px;
+  height: 64px;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-session-generate-btn:hover:not(:disabled) {
+  background-color: #a855f7;
+  transform: translateY(-2px);
+  box-shadow: 0px 6px 8px 0px rgba(0, 0, 0, 0.6);
+}
+
+.create-session-generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.create-session-generate-btn.generating {
+  background-color: #7e22ce;
+  cursor: wait;
+  transform: scale(0.98);
+  box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.7);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1600px) {
+  .create-session-modal {
+    width: 90vw;
+    max-width: 900px;
+  }
+
+  .create-session-step-title {
+    font-size: 50px;
+  }
+
+  .create-session-btn {
+    font-size: 20px;
+  }
+  
+  .create-session-btn.practice,
+  .create-session-btn.test {
+    min-width: 200px;
+  }
+  
+  .create-session-btn.amount-btn {
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .create-session-step-title {
+    font-size: 40px;
+  }
+
+  .create-session-subject-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .create-session-button-group {
+    flex-wrap: wrap;
+  }
+
+  .create-session-btn.practice,
+  .create-session-btn.test {
+    width: 100%;
+    max-width: 337px;
+  }
+}
+
+@media (max-width: 768px) {
+  .create-session-content {
+    padding: 20px;
+    gap: 40px;
+  }
+
+  .create-session-step-title {
+    font-size: 32px;
+  }
+
+  .create-session-btn {
+    font-size: 18px;
+    padding: 12px;
+  }
+
+  .create-session-button-group {
+    flex-direction: column;
+  }
+
+  .create-session-btn.practice,
+  .create-session-btn.test,
+  .create-session-btn.amount-btn,
+  .create-session-btn.subject-btn {
+    width: 100%;
+    height: auto;
+  }
+
+  .create-session-subject-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-session-generate-btn {
+    width: 100%;
+    max-width: 671px;
+  }
+
+  .create-session-topic-label {
+    font-size: 24px;
+  }
+
+  .create-session-other-label {
+    font-size: 24px;
+  }
+}
