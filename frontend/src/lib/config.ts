@@ -7,3 +7,8 @@ export const API_CONFIG = {
     'ngrok-skip-browser-warning': 'true',
   },
 };
+
+// Chat endpoint configuration
+export const CHAT_ENDPOINT = {
+  path: '/assistant',
+};

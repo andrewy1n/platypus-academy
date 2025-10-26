@@ -14,11 +14,16 @@ export default function ChatBubble({ isVisible = true }: ChatBubbleProps) {
   const hasUnreadMessages = messages.length > 0 && 
     messages[messages.length - 1]?.sender === 'assistant';
 
+  const handleClick = () => {
+    console.log('Chat bubble clicked, opening modal');
+    openModal();
+  };
+
   return (
     <div className="chat-bubble-container">
       <button
         className={`chat-bubble ${hasUnreadMessages ? 'has-unread' : ''}`}
-        onClick={openModal}
+        onClick={handleClick}
         aria-label="Open chat"
         title="Ask for help"
       >

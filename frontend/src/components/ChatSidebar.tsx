@@ -4,7 +4,7 @@ import { ChatMessage } from '../types/chat';
 import './ChatSidebar.css';
 
 export default function ChatSidebar() {
-  const { isModalOpen, closeModal, messages, sendMessage, isLoading } = useChat();
+  const { isModalOpen, closeModal, messages, sendMessage, isLoading, statusMessage } = useChat();
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -16,13 +16,25 @@ export default function ChatSidebar() {
 
   // Focus input when sidebar opens
   useEffect(() => {
-    if (isModalOpen && inputRef.current) {
-      inputRef.current.focus();
+    if (isModalOpen) {
+      console.log('Focusing input field, ref current:', inputRef.current);
+      // Add a small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          console.log('Input field focused after timeout, ref:', inputRef.current);
+        } else {
+          console.log('Input ref still null after timeout');
+        }
+      }, 150);
+      
+      return () => clearTimeout(timer);
     }
   }, [isModalOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted, inputValue:', inputValue, 'isLoading:', isLoading);
     if (!inputValue.trim() || isLoading) return;
 
     const message = inputValue.trim();
@@ -37,14 +49,43 @@ export default function ChatSidebar() {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('Input change:', e.target.value); // Debug log
+    setInputValue(e.target.value);
+  };
+
+  const handleInputFocus = () => {
+    console.log('Input focused');
+  };
+
+  const handleInputBlur = () => {
+    console.log('Input blurred');
+  };
+
+  const handleInputClick = (e: React.MouseEvent) => {
+    console.log('Input clicked');
+    e.stopPropagation();
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  if (!isModalOpen) return null;
+  if (!isModalOpen) {
+    console.log('Chat sidebar not open, isModalOpen:', isModalOpen);
+    return null;
+  }
+
+  console.log('Chat sidebar is open, messages:', messages.length, 'isLoading:', isLoading);
+  console.log('Status message:', statusMessage);
+  console.log('Input ref:', inputRef.current);
+  console.log('Input value state:', inputValue);
 
   return (
-    <div className="chat-sidebar">
+    <div className="chat-sidebar" onClick={() => console.log('Sidebar clicked')}>
       {/* Header */}
       <div className="chat-sidebar-header">
         <div className="chat-sidebar-title">
@@ -96,10 +137,27 @@ export default function ChatSidebar() {
           messages.map((message: ChatMessage) => (
             <div
               key={message.id}
-              className={`chat-message ${message.sender}`}
+              className={`chat-message ${message.sender} ${message.isInitialGreeting ? 'initial-greeting' : ''}`}
             >
               <div className="message-content">
-                <div className="message-text">{message.content}</div>
+                {message.isInitialGreeting && (
+                  <div className="greeting-header">
+                    <div className="tutor-avatar">🎓</div>
+                    <div className="tutor-title">Your AI Tutor</div>
+                  </div>
+                )}
+                <div 
+                  className={`message-text ${message.isInitialGreeting ? 'greeting-text' : ''}`}
+                  style={{ whiteSpace: 'pre-wrap' }}
+                  dangerouslySetInnerHTML={{ 
+                    __html: message.content
+                      .replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\n/g, '<br/>')
+                  }}
+                />
                 <div className="message-time">
                   {formatTime(message.timestamp)}
                 </div>
@@ -120,21 +178,40 @@ export default function ChatSidebar() {
           </div>
         )}
         
+        {/* Status message indicator */}
+        {statusMessage && (
+          <div className="status-message">
+            <span className="status-text">{statusMessage}</span>
+          </div>
+        )}
+        
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
       <form className="chat-sidebar-input" onSubmit={handleSubmit}>
-        <div className="input-container">
+        <div 
+          className="input-container" 
+          onClick={(e) => {
+            console.log('Input container clicked');
+            if (inputRef.current && e.target !== inputRef.current) {
+              inputRef.current.focus();
+            }
+          }}
+        >
           <input
             ref={inputRef}
             type="text"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={handleInputChange}
             onKeyPress={handleKeyPress}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            onClick={handleInputClick}
             placeholder="Ask for help with this question..."
             disabled={isLoading}
             className="chat-input"
+            autoComplete="off"
           />
           <button
             type="submit"

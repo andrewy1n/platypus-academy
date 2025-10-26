@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { ChatContextType, ChatMessage, ChatSession } from '../types/chat';
+import { chatService } from '../services/chatService';
+import { useAuth } from './AuthContext';
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
@@ -10,10 +12,12 @@ interface ChatProviderProps {
 }
 
 export function ChatProvider({ children }: ChatProviderProps) {
+  const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
   
   // Ref to track if we're currently processing a message
   const processingRef = useRef(false);
@@ -60,10 +64,11 @@ export function ChatProvider({ children }: ChatProviderProps) {
     processingRef.current = true;
     setIsLoading(true);
 
-    // Create user message
+    const trimmed = content.trim();
+
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}-user`,
-      content: content.trim(),
+      content: trimmed,
       sender: 'user',
       timestamp: new Date(),
     };
@@ -72,20 +77,35 @@ export function ChatProvider({ children }: ChatProviderProps) {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      // TODO: Replace with actual Claude API call
-      // For now, simulate a response
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const practiceSessionId = currentSession?.practiceSessionId || '';
+      const userId = user?.id || '';
       
+      // Callback to update status messages in real-time
+      const onStatusUpdate = (status: string) => {
+        console.log('📢 Status update received:', status);
+        setStatusMessage(status);
+      };
+      
+      const assistantText = await chatService.sendMessage(
+        practiceSessionId, 
+        trimmed, 
+        userId,
+        onStatusUpdate
+      );
+
+      // Clear status message when complete
+      setStatusMessage('');
+
       const assistantMessage: ChatMessage = {
         id: `msg-${Date.now()}-assistant`,
-        content: `I understand you're asking about: "${content.trim()}". This is a placeholder response that will be replaced with Claude's actual response.`,
+        content: assistantText || '...',
         sender: 'assistant',
         timestamp: new Date(),
+        isInitialGreeting: messages.length === 0, // Mark as initial greeting if it's the first message
       };
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Update session
       if (currentSession) {
         const updatedSession = {
           ...currentSession,
@@ -96,18 +116,37 @@ export function ChatProvider({ children }: ChatProviderProps) {
       }
     } catch (error) {
       console.error('Error sending message:', error);
+
+      let errorText = 'Sorry, I encountered an error. Please try again.';
       
-      // Add error message
+      if (error instanceof Error) {
+        if (error.message.includes('404')) {
+          errorText = 'Chat endpoint not found. Please check your backend configuration.';
+        } else if (error.message.includes('Not Found')) {
+          errorText = 'Chat endpoint not available. The backend may not have this endpoint configured.';
+        } else if (error.message.includes('Failed to connect to agents service')) {
+          errorText = '⚠️ Backend Error: Failed to connect to agents service. Please check your backend configuration.';
+        } else if (error.message.includes('Assistant step failed')) {
+          errorText = '⚠️ AI Assistant Error: The assistant encountered an issue. This might be a temporary problem with the AI service.';
+        } else if (error.message.includes("'tool'")) {
+          errorText = '⚠️ Tool Error: There was an issue with the AI tools. Please try again or contact support.';
+        } else if (error.message.length > 0 && error.message.length < 200) {
+          // Show the actual error message if it's reasonable length
+          errorText = `⚠️ ${error.message}`;
+        }
+      }
+
       const errorMessage: ChatMessage = {
         id: `msg-${Date.now()}-error`,
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: errorText,
         sender: 'assistant',
         timestamp: new Date(),
       };
-      
+
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      setStatusMessage('');
       processingRef.current = false;
     }
   }, [currentSession, messages]);
@@ -117,6 +156,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     currentSession,
     messages,
     isLoading,
+    statusMessage,
     openModal,
     closeModal,
     sendMessage,

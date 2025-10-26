@@ -4,6 +4,7 @@ export interface ChatMessage {
   sender: 'user' | 'assistant';
   timestamp: Date;
   isTyping?: boolean;
+  isInitialGreeting?: boolean;
 }
 
 export interface ChatSession {
@@ -21,6 +22,7 @@ export interface ChatContextType {
   currentSession: ChatSession | null;
   messages: ChatMessage[];
   isLoading: boolean;
+  statusMessage: string;
   
   // Actions
   openModal: () => void;
