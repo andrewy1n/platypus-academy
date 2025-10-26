@@ -8,7 +8,12 @@ export interface SessionQuestion {
   type: 'multiple-choice' | 'free-response' | 'problem-solving';
   difficulty: 'easy' | 'medium' | 'hard';
   isCompleted: boolean;
-  previewImage?: string;
+  isCorrect?: boolean;
+  pointsEarned?: number;
+  maxPoints?: number;
+  studentAnswer?: string;
+  correctAnswer?: string;
+  explanation?: string;
 }
 
 export interface PracticeSession {
@@ -23,33 +28,39 @@ export interface PracticeSession {
   createdAt: Date;
   lastAccessed: Date;
   source?: string; // e.g., "Created from Calculus.jpeg"
+  totalScore?: number;
+  totalPoints?: number;
+  pointsEarned?: number;
 }
 
 interface SessionsTabProps {
   sessions?: PracticeSession[];
   onResumeSession?: (sessionId: string) => void;
   onPreviewSession?: (sessionId: string) => void;
+  onJumpToQuestion?: (sessionId: string, questionIndex: number) => void;
 }
 
 export default function SessionsTab({ 
   sessions = [], 
   onResumeSession, 
-  onPreviewSession 
+  onPreviewSession,
+  onJumpToQuestion
 }: SessionsTabProps) {
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
-  const [previewSession, setPreviewSession] = useState<string | null>(null);
 
   // Mock data for demonstration - replace with actual data from props
   const mockSessions: PracticeSession[] = sessions.length > 0 ? sessions : [
     {
       id: '1',
-      title: 'Calculus Review',
+      title: 'Calculus Derivatives Review',
       subject: 'Mathematics',
-      status: 'in-progress',
-      progress: 75,
-      totalQuestions: 5,
-      completedQuestions: 3,
-      source: 'Created from Calculus.jpeg',
+      status: 'completed',
+      progress: 100,
+      totalQuestions: 6,
+      completedQuestions: 6,
+      totalScore: 88,
+      totalPoints: 60,
+      pointsEarned: 52.5,
       createdAt: new Date('2024-01-15'),
       lastAccessed: new Date('2024-01-20'),
       questions: [
@@ -59,7 +70,12 @@ export default function SessionsTab({
           type: 'problem-solving',
           difficulty: 'medium',
           isCompleted: true,
-          previewImage: 'http://localhost:3845/assets/5808d56324cc366e87ee05bf8550f7db2cc314b4.png'
+          isCorrect: true,
+          pointsEarned: 10,
+          maxPoints: 10,
+          studentAnswer: 'x = 1, x = 3',
+          correctAnswer: 'x = 1, x = 3',
+          explanation: 'Correct! You found both critical points by setting f\'(x) = 0.'
         },
         {
           id: 'q2',
@@ -67,7 +83,12 @@ export default function SessionsTab({
           type: 'problem-solving',
           difficulty: 'hard',
           isCompleted: true,
-          previewImage: 'http://localhost:3845/assets/5808d56324cc366e87ee05bf8550f7db2cc314b4.png'
+          isCorrect: false,
+          pointsEarned: 5,
+          maxPoints: 10,
+          studentAnswer: 'cos(3x²+1)',
+          correctAnswer: '6x cos(3x²+1)',
+          explanation: 'You forgot to multiply by the derivative of the inner function (3x²+1). The chain rule requires multiplying by 6x.'
         },
         {
           id: 'q3',
@@ -75,47 +96,308 @@ export default function SessionsTab({
           type: 'problem-solving',
           difficulty: 'medium',
           isCompleted: true,
-          previewImage: 'http://localhost:3845/assets/5808d56324cc366e87ee05bf8550f7db2cc314b4.png'
+          isCorrect: true,
+          pointsEarned: 10,
+          maxPoints: 10,
+          studentAnswer: '21',
+          correctAnswer: '21',
+          explanation: 'Perfect! You correctly evaluated ∫₁⁴ x² dx = [x³/3]₁⁴ = 64/3 - 1/3 = 21.'
         },
         {
           id: 'q4',
-          content: 'Differentiate the following function using the chain rule: f(x)=sin(3x²+1)',
+          content: 'Find the derivative of f(x) = ln(x² + 1)',
           type: 'problem-solving',
-          difficulty: 'hard',
-          isCompleted: false,
-          previewImage: 'http://localhost:3845/assets/5808d56324cc366e87ee05bf8550f7db2cc314b4.png'
+          difficulty: 'medium',
+          isCompleted: true,
+          isCorrect: true,
+          pointsEarned: 10,
+          maxPoints: 10,
+          studentAnswer: '2x/(x² + 1)',
+          correctAnswer: '2x/(x² + 1)',
+          explanation: 'Excellent! You correctly applied the chain rule for logarithmic functions.'
         },
         {
           id: 'q5',
-          content: 'Differentiate the following function using the chain rule: f(x)=sin(3x²+1)',
+          content: 'Determine if the function f(x) = x³ - 3x + 1 has any local extrema.',
           type: 'problem-solving',
           difficulty: 'hard',
-          isCompleted: false,
-          previewImage: 'http://localhost:3845/assets/5808d56324cc366e87ee05bf8550f7db2cc314b4.png'
+          isCompleted: true,
+          isCorrect: false,
+          pointsEarned: 7.5,
+          maxPoints: 10,
+          studentAnswer: 'Local minimum at x = 1, local maximum at x = -1',
+          correctAnswer: 'Local minimum at x = 1, local maximum at x = -1',
+          explanation: 'You identified the critical points correctly, but you need to use the second derivative test to confirm they are extrema.'
+        },
+        {
+          id: 'q6',
+          content: 'Find the equation of the tangent line to f(x) = x² at x = 2.',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: true,
+          isCorrect: true,
+          pointsEarned: 10,
+          maxPoints: 10,
+          studentAnswer: 'y = 4x - 4',
+          correctAnswer: 'y = 4x - 4',
+          explanation: 'Perfect! You correctly found the slope (4) and used point-slope form to get the tangent line equation.'
         }
       ]
     },
     {
       id: '2',
-      title: 'Trigonometry Review',
+      title: 'Trigonometry Fundamentals',
       subject: 'Mathematics',
-      status: 'not-started',
-      progress: 0,
+      status: 'in-progress',
+      progress: 60,
       totalQuestions: 8,
-      completedQuestions: 0,
+      completedQuestions: 5,
+      totalScore: 75,
+      totalPoints: 40,
+      pointsEarned: 30,
       createdAt: new Date('2024-01-18'),
-      lastAccessed: new Date('2024-01-18'),
+      lastAccessed: new Date('2024-01-22'),
       questions: [
         {
           id: 'q1',
           content: 'Find the exact value of sin(π/6)',
           type: 'multiple-choice',
           difficulty: 'easy',
-          isCompleted: false
+          isCompleted: true,
+          isCorrect: true,
+          pointsEarned: 5,
+          maxPoints: 5,
+          studentAnswer: '1/2',
+          correctAnswer: '1/2',
+          explanation: 'Correct! sin(π/6) = sin(30°) = 1/2.'
         },
         {
           id: 'q2',
           content: 'Solve for x: cos(x) = 1/2',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: true,
+          isCorrect: true,
+          pointsEarned: 8,
+          maxPoints: 8,
+          studentAnswer: 'x = π/3 + 2πn, x = 5π/3 + 2πn',
+          correctAnswer: 'x = π/3 + 2πn, x = 5π/3 + 2πn',
+          explanation: 'Perfect! You found both solutions in the general form.'
+        },
+        {
+          id: 'q3',
+          content: 'Prove the identity: sin²(x) + cos²(x) = 1',
+          type: 'free-response',
+          difficulty: 'medium',
+          isCompleted: true,
+          isCorrect: false,
+          pointsEarned: 4,
+          maxPoints: 8,
+          studentAnswer: 'Using Pythagorean theorem on unit circle',
+          correctAnswer: 'This is the fundamental Pythagorean identity. On the unit circle, if (x,y) represents (cos θ, sin θ), then x² + y² = 1 by the Pythagorean theorem.',
+          explanation: 'Your approach is correct, but you need to be more specific about how the unit circle relates to the trigonometric functions.'
+        },
+        {
+          id: 'q4',
+          content: 'Find the period of f(x) = 3sin(2x + π/4)',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: true,
+          isCorrect: true,
+          pointsEarned: 6,
+          maxPoints: 6,
+          studentAnswer: 'π',
+          correctAnswer: 'π',
+          explanation: 'Correct! The period of sin(2x) is 2π/2 = π.'
+        },
+        {
+          id: 'q5',
+          content: 'Evaluate tan(π/4)',
+          type: 'multiple-choice',
+          difficulty: 'easy',
+          isCompleted: true,
+          isCorrect: true,
+          pointsEarned: 5,
+          maxPoints: 5,
+          studentAnswer: '1',
+          correctAnswer: '1',
+          explanation: 'Correct! tan(π/4) = tan(45°) = 1.'
+        },
+        {
+          id: 'q6',
+          content: 'Find the amplitude of f(x) = 4cos(3x)',
+          type: 'problem-solving',
+          difficulty: 'easy',
+          isCompleted: false
+        },
+        {
+          id: 'q7',
+          content: 'Solve: 2sin(x) = 1 for 0 ≤ x ≤ 2π',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: false
+        },
+        {
+          id: 'q8',
+          content: 'Find the phase shift of f(x) = sin(x - π/3)',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: false
+        }
+      ]
+    },
+    {
+      id: '3',
+      title: 'Physics Kinematics',
+      subject: 'Physics',
+      status: 'in-progress',
+      progress: 50,
+      totalQuestions: 8,
+      completedQuestions: 4,
+      totalScore: 80,
+      totalPoints: 40,
+      pointsEarned: 32,
+      createdAt: new Date('2024-01-20'),
+      lastAccessed: new Date('2024-01-22'),
+      questions: [
+        {
+          id: 'q1',
+          content: 'A car accelerates from rest at 2 m/s² for 10 seconds. What is its final velocity?',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: true,
+          isCorrect: true,
+          pointsEarned: 8,
+          maxPoints: 8,
+          studentAnswer: '20 m/s',
+          correctAnswer: '20 m/s',
+          explanation: 'Correct! Using v = v₀ + at, with v₀ = 0, a = 2 m/s², t = 10s, we get v = 20 m/s.'
+        },
+        {
+          id: 'q2',
+          content: 'An object is thrown upward with initial velocity 20 m/s. How high does it go?',
+          type: 'problem-solving',
+          difficulty: 'hard',
+          isCompleted: true,
+          isCorrect: false,
+          pointsEarned: 6,
+          maxPoints: 10,
+          studentAnswer: '40 m',
+          correctAnswer: '20.4 m',
+          explanation: 'You used the wrong equation. Use v² = v₀² + 2as with v = 0 at the peak, v₀ = 20 m/s, a = -9.8 m/s².'
+        },
+        {
+          id: 'q3',
+          content: 'What is the acceleration due to gravity on Earth?',
+          type: 'multiple-choice',
+          difficulty: 'easy',
+          isCompleted: true,
+          isCorrect: true,
+          pointsEarned: 5,
+          maxPoints: 5,
+          studentAnswer: '9.8 m/s²',
+          correctAnswer: '9.8 m/s²',
+          explanation: 'Correct! The standard value for gravitational acceleration on Earth is 9.8 m/s².'
+        },
+        {
+          id: 'q4',
+          content: 'A ball is dropped from a height of 45m. How long does it take to hit the ground?',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: true,
+          isCorrect: true,
+          pointsEarned: 9,
+          maxPoints: 9,
+          studentAnswer: '3.03 seconds',
+          correctAnswer: '3.03 seconds',
+          explanation: 'Perfect! Using s = ½gt² with s = 45m and g = 9.8 m/s², we get t = 3.03s.'
+        },
+        {
+          id: 'q5',
+          content: 'A projectile is launched at 30° with initial speed 25 m/s. What is its horizontal range?',
+          type: 'problem-solving',
+          difficulty: 'hard',
+          isCompleted: false
+        },
+        {
+          id: 'q6',
+          content: 'A train decelerates from 30 m/s to rest in 15 seconds. What is its acceleration?',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: false
+        },
+        {
+          id: 'q7',
+          content: 'Which of the following is NOT a vector quantity?',
+          type: 'multiple-choice',
+          difficulty: 'easy',
+          isCompleted: false
+        },
+        {
+          id: 'q8',
+          content: 'A car travels 100m in 5 seconds, then 200m in 10 seconds. What is its average speed?',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: false
+        }
+      ]
+    },
+    {
+      id: '4',
+      title: 'Organic Chemistry Reactions',
+      subject: 'Chemistry',
+      status: 'not-started',
+      progress: 0,
+      totalQuestions: 7,
+      completedQuestions: 0,
+      createdAt: new Date('2024-01-21'),
+      lastAccessed: new Date('2024-01-21'),
+      questions: [
+        {
+          id: 'q1',
+          content: 'What type of reaction occurs when an alkene reacts with H₂ in the presence of a catalyst?',
+          type: 'multiple-choice',
+          difficulty: 'easy',
+          isCompleted: false
+        },
+        {
+          id: 'q2',
+          content: 'Draw the mechanism for the SN2 reaction between CH₃Br and OH⁻.',
+          type: 'free-response',
+          difficulty: 'hard',
+          isCompleted: false
+        },
+        {
+          id: 'q3',
+          content: 'Which functional group is present in aldehydes?',
+          type: 'multiple-choice',
+          difficulty: 'easy',
+          isCompleted: false
+        },
+        {
+          id: 'q4',
+          content: 'Predict the product of the reaction between 2-methyl-2-butene and HCl.',
+          type: 'problem-solving',
+          difficulty: 'medium',
+          isCompleted: false
+        },
+        {
+          id: 'q5',
+          content: 'What is the IUPAC name for CH₃CH₂CH₂OH?',
+          type: 'problem-solving',
+          difficulty: 'easy',
+          isCompleted: false
+        },
+        {
+          id: 'q6',
+          content: 'Explain why tertiary alcohols are more stable than primary alcohols.',
+          type: 'free-response',
+          difficulty: 'medium',
+          isCompleted: false
+        },
+        {
+          id: 'q7',
+          content: 'What is the major product when benzene reacts with Cl₂ in the presence of FeCl₃?',
           type: 'problem-solving',
           difficulty: 'medium',
           isCompleted: false
@@ -124,21 +406,11 @@ export default function SessionsTab({
     }
   ];
 
-  const handleTogglePreview = (sessionId: string) => {
-    if (previewSession === sessionId) {
-      setPreviewSession(null);
-    } else {
-      setPreviewSession(sessionId);
-      setExpandedSession(null); // Close any expanded session
-    }
-  };
-
   const handleToggleExpand = (sessionId: string) => {
     if (expandedSession === sessionId) {
       setExpandedSession(null);
     } else {
       setExpandedSession(sessionId);
-      setPreviewSession(null); // Close any preview
     }
   };
 
@@ -233,22 +505,126 @@ export default function SessionsTab({
                               className={`flow-question ${
                                 index < session.completedQuestions ? 'completed' : 
                                 index === session.completedQuestions ? 'current' : 'pending'
-                              }`}
-                              onClick={() => console.log(`Jump to question ${index + 1}`)}
+                              } ${question.isCorrect === false ? 'incorrect' : ''}`}
+                              onClick={() => onJumpToQuestion?.(session.id, index)}
+                              title={question.isCompleted ? 
+                                `${question.isCorrect ? 'Correct' : 'Incorrect'} - ${question.pointsEarned}/${question.maxPoints} points` : 
+                                'Click to jump to this question'
+                              }
                             >
                               <div className="question-number">{index + 1}</div>
                               <div className="question-status">
                                 {index < session.completedQuestions ? (
-                                  <span className="status-completed">✓ Done</span>
+                                  <span className={`status-completed ${question.isCorrect === false ? 'incorrect' : ''}`}>
+                                    {question.isCorrect === false ? '✗ Wrong' : '✓ Correct'}
+                                  </span>
                                 ) : index === session.completedQuestions ? (
                                   <span className="status-current">→ Next</span>
                                 ) : (
                                   <span className="status-pending">○ Pending</span>
                                 )}
                               </div>
+                              {question.isCompleted && question.pointsEarned !== undefined && (
+                                <div className="question-score">
+                                  {question.pointsEarned}/{question.maxPoints}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {session.status === 'completed' && (
+                  <div className="session-summary">
+                    <div className="summary-header">
+                      <h3 className="summary-title">Session Complete!</h3>
+                      <div className="summary-score">
+                        <span className="score-percentage">{session.totalScore}%</span>
+                        <span className="score-details">{session.pointsEarned}/{session.totalPoints} points</span>
+                      </div>
+                    </div>
+                    <div className="summary-breakdown">
+                      <div className="breakdown-item">
+                        <span className="breakdown-label">Correct Answers</span>
+                        <span className="breakdown-value">
+                          {session.questions.filter(q => q.isCorrect === true).length}/{session.totalQuestions}
+                        </span>
+                      </div>
+                      <div className="breakdown-item">
+                        <span className="breakdown-label">Incorrect Answers</span>
+                        <span className="breakdown-value">
+                          {session.questions.filter(q => q.isCorrect === false).length}/{session.totalQuestions}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Question List for Completed Sessions */}
+                    <div className="completed-questions-list">
+                      <h4 className="questions-list-title">Question Results</h4>
+                      <div className="questions-grid">
+                        {session.questions.map((question, index) => (
+                          <div 
+                            key={question.id} 
+                            className={`question-result-card ${question.isCorrect ? 'correct' : 'incorrect'}`}
+                          >
+                            <div 
+                              className="question-card-header"
+                              onClick={() => {
+                                const card = document.querySelector(`[data-question-card="${question.id}"]`);
+                                const toggle = document.querySelector(`[data-toggle="${question.id}"]`);
+                                if (card && toggle) {
+                                  card.classList.toggle('collapsed');
+                                  toggle.classList.toggle('rotated');
+                                }
+                              }}
+                            >
+                              <div className="question-header-left">
+                                <span className="question-result-number">{index + 1}</span>
+                                <span className={`question-result-status ${question.isCorrect ? 'correct' : 'incorrect'}`}>
+                                  {question.isCorrect ? '✓' : '✗'}
+                                </span>
+                                <span className="question-result-score">
+                                  {question.pointsEarned}/{question.maxPoints} pts
+                                </span>
+                              </div>
+                              <button className="question-card-toggle" data-toggle={question.id}>
+                                ▼
+                              </button>
+                            </div>
+                            
+                            {/* Collapsible Question Content */}
+                            <div className="question-card-content" data-question-card={question.id}>
+                              <div className="question-content-main">
+                                <p className="question-result-text">{question.content}</p>
+                              </div>
+                              
+                              <div className="question-details">
+                                <div className="detail-section">
+                                  <strong>Your Answer:</strong> {question.studentAnswer}
+                                </div>
+                                <div className="detail-section">
+                                  <strong>Correct Answer:</strong> {question.correctAnswer}
+                                </div>
+                                {question.explanation && (
+                                  <div className="detail-section explanation">
+                                    <strong>Explanation:</strong> {question.explanation}
+                                  </div>
+                                )}
+                                <div className="detail-actions">
+                                  <button 
+                                    className="jump-to-question-btn"
+                                    onClick={() => onJumpToQuestion?.(session.id, index)}
+                                  >
+                                    Jump to Question
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -264,52 +640,10 @@ export default function SessionsTab({
                   className="session-btn resume-btn"
                   onClick={() => onResumeSession?.(session.id)}
                 >
-                  Resume
-                </button>
-                <button 
-                  className="session-btn preview-btn"
-                  onClick={() => handleTogglePreview(session.id)}
-                >
-                  {previewSession === session.id ? 'Close Preview' : 'Preview Questions'}
-                  {previewSession === session.id ? (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M9.88 9.88L14.12 14.12M14.12 9.88L9.88 14.12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                      <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2"/>
-                    </svg>
-                  ) : (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" strokeWidth="2"/>
-                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
-                    </svg>
-                  )}
+                  {session.status === 'completed' ? 'Review Session' : session.status === 'in-progress' ? 'Continue Practice' : 'Start Practice'}
                 </button>
               </div>
 
-              {/* Preview Questions Section */}
-              {previewSession === session.id && (
-                <div className="session-preview">
-                  <h3 className="preview-title">Preview Questions</h3>
-                  <div className="questions-list">
-                    {session.questions.map((question, index) => (
-                      <div key={question.id} className="question-preview">
-                        <div className="question-number">
-                          {index + 1}.)
-                        </div>
-                        <div className="question-content">
-                          <p className="question-text">{question.content}</p>
-                          {question.previewImage && (
-                            <img 
-                              src={question.previewImage} 
-                              alt="Question preview"
-                              className="question-preview-image"
-                            />
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           ))}
         </div>

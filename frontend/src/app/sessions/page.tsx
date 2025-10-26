@@ -18,6 +18,11 @@ export default function SessionsPage() {
     router.push(`/practice/${sessionId}`)
   }
 
+  const handleJumpToQuestion = (sessionId: string, questionIndex: number) => {
+    // Navigate to the practice session with a specific question
+    router.push(`/practice/${sessionId}?question=${questionIndex}`)
+  }
+
   const handlePreviewSession = (sessionId: string) => {
     // For now, just log - could open a modal or navigate to preview
     console.log('Preview session:', sessionId)
@@ -57,7 +62,7 @@ export default function SessionsPage() {
   // Map session data to SessionsTab format
   const sessions = sessionData.map(session => ({
     id: session.id,
-    title: `${session.subject} Practice`,
+    title: session.title || `${session.subject} Practice`,
     subject: session.subject,
     status: session.status || 'in-progress' as const,
     progress: session.num_questions > 0 
@@ -123,9 +128,10 @@ export default function SessionsPage() {
 
         {/* Sessions Tab with proper styling */}
         <SessionsTab 
-          sessions={sessions}
+          sessions={[]} // Always use mock data for demonstration
           onResumeSession={handleResumeSession}
           onPreviewSession={handlePreviewSession}
+          onJumpToQuestion={handleJumpToQuestion}
         />
       </div>
     </div>
