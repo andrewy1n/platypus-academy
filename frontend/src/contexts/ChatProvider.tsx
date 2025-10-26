@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { ChatContextType, ChatMessage, ChatSession } from '../types/chat';
+import { Question } from '../components/QuestionRenderer';
 import { chatService } from '../services/chatService';
 import { useAuth } from './AuthContext';
 
@@ -18,6 +19,8 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   
   // Ref to track if we're currently processing a message
   const processingRef = useRef(false);
@@ -58,6 +61,11 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }
   }, [currentSession]);
 
+  const updateCurrentQuestion = useCallback((question: Question | null, questionIndex: number) => {
+    setCurrentQuestion(question);
+    setCurrentQuestionIndex(questionIndex);
+  }, []);
+
   const sendMessage = useCallback(async (content: string) => {
     if (processingRef.current || !content.trim()) return;
 
@@ -86,9 +94,25 @@ export function ChatProvider({ children }: ChatProviderProps) {
         setStatusMessage(status);
       };
       
+      // Prepare question context for the AI
+      let questionContext = '';
+      if (currentQuestion) {
+        questionContext = `\n\nCurrent Question Context:\nQuestion ${currentQuestionIndex + 1}: ${currentQuestion.questionText}\nType: ${currentQuestion.questionType.toUpperCase()}`;
+        
+        if (currentQuestion.choices && currentQuestion.choices.length > 0) {
+          questionContext += `\nChoices: ${currentQuestion.choices.join(', ')}`;
+        }
+        
+        if (currentQuestion.explanation) {
+          questionContext += `\nExplanation: ${currentQuestion.explanation}`;
+        }
+      }
+      
+      const messageWithContext = trimmed + questionContext;
+      
       const assistantText = await chatService.sendMessage(
         practiceSessionId, 
-        trimmed, 
+        messageWithContext, 
         userId,
         onStatusUpdate
       );
@@ -157,11 +181,14 @@ export function ChatProvider({ children }: ChatProviderProps) {
     messages,
     isLoading,
     statusMessage,
+    currentQuestion,
+    currentQuestionIndex,
     openModal,
     closeModal,
     sendMessage,
     startNewSession,
     clearChat,
+    updateCurrentQuestion,
   };
 
   return (

@@ -4,7 +4,7 @@ import { ChatMessage } from '../types/chat';
 import './ChatSidebar.css';
 
 export default function ChatSidebar() {
-  const { isModalOpen, closeModal, messages, sendMessage, isLoading, statusMessage } = useChat();
+  const { isModalOpen, closeModal, messages, sendMessage, isLoading, statusMessage, currentQuestion, currentQuestionIndex } = useChat();
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,7 +100,15 @@ export default function ChatSidebar() {
               />
             </svg>
           </div>
-          <h3>Practice Helper</h3>
+          <div className="chat-title-content">
+            <h3>Practice Helper</h3>
+            {currentQuestion && (
+              <div className="question-context">
+                <span className="question-indicator">Question {currentQuestionIndex + 1}</span>
+                <span className="question-type">{currentQuestion.questionType.toUpperCase()}</span>
+              </div>
+            )}
+          </div>
         </div>
         <button className="chat-sidebar-close" onClick={closeModal}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">

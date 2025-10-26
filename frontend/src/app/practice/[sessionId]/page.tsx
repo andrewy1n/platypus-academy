@@ -212,7 +212,12 @@ export default function PracticePage({ params }: PracticePageProps) {
     }))
     
     return (
-      <PracticeWithChat practiceSessionId={sessionId} isActive={false}>
+      <PracticeWithChat 
+        practiceSessionId={sessionId} 
+        isActive={false}
+        currentQuestion={null}
+        currentQuestionIndex={0}
+      >
         <EndSummary 
           questions={questionsWithAnswers} 
           onBackToHome={handleBackToHome}
@@ -225,7 +230,12 @@ export default function PracticePage({ params }: PracticePageProps) {
   const currentAnswer = currentQuestion ? userAnswers[currentQuestion.id!] : undefined
 
   return (
-    <PracticeWithChat practiceSessionId={sessionId} isActive={true}>
+    <PracticeWithChat 
+      practiceSessionId={sessionId} 
+      isActive={true}
+      currentQuestion={currentQuestion}
+      currentQuestionIndex={currentQuestionIndex}
+    >
       <div className="practice-page">
         <div className="practice-container">
           <div className="practice-header">

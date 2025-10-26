@@ -1,3 +1,5 @@
+import { Question } from '../components/QuestionRenderer';
+
 export interface ChatMessage {
   id: string;
   content: string;
@@ -23,6 +25,8 @@ export interface ChatContextType {
   messages: ChatMessage[];
   isLoading: boolean;
   statusMessage: string;
+  currentQuestion: Question | null;
+  currentQuestionIndex: number;
   
   // Actions
   openModal: () => void;
@@ -30,4 +34,5 @@ export interface ChatContextType {
   sendMessage: (content: string) => Promise<void>;
   startNewSession: (practiceSessionId: string) => void;
   clearChat: () => void;
+  updateCurrentQuestion: (question: Question | null, questionIndex: number) => void;
 }

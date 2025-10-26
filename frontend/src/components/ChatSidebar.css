@@ -47,6 +47,44 @@
   color: #1e1e1e;
 }
 
+.chat-title-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-title-content h3 {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: #1e1e1e;
+}
+
+.question-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.question-indicator {
+  background: #60B2E5;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.question-type {
+  background: #f3f4f6;
+  color: #6b7280;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .chat-sidebar-close {
   background: none;
   border: none;
