@@ -52,7 +52,23 @@ async def stream_pipeline_execution(request: SearchRequest):
         try:
             async for event in parse_step(data):
                 if event['type'] == 'progress':
-                    yield f"data: {json.dumps({'status': 'progress', 'step': 'parse', 'message': event['message'], 'current': event['current'], 'total': event['total']})}\n\n"
+                    progress_data = {
+                        'status': 'progress', 
+                        'step': 'parse', 
+                        'message': event['message'],
+                        'parse_step': event.get('step', 'processing'),
+                        'url': event.get('url'),
+                        'current': event.get('current'),
+                        'total': event.get('total'),
+                        'chunks_count': event.get('chunks_count'),
+                        'index_name': event.get('index_name'),
+                        'max_workers': event.get('max_workers'),
+                        'total_questions': event.get('total_questions')
+                    }
+                    yield f"data: {json.dumps(progress_data)}\n\n"
+                    await asyncio.sleep(0)
+                elif event['type'] == 'error':
+                    yield f"data: {json.dumps({'status': 'error', 'step': 'parse', 'message': event['message'], 'url': event.get('url')})}\n\n"
                     await asyncio.sleep(0)
                 elif event['type'] == 'complete':
                     data = event['data']

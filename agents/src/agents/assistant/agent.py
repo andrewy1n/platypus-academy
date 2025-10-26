@@ -147,9 +147,7 @@ class AssistantAgent:
                     )
                     # Update the agent reference
                     self.agent = self.base_agent
-                    print(f"✓ Agent updated with {len(mcp_tools)} MCP tools from Elastic Agent Builder")
-                    for tool in mcp_tools:
-                        print(f"  - {tool.name}: {tool.description[:100] if hasattr(tool, 'description') else 'No description'}")
+                   
                 else:
                     print("No MCP tools retrieved from server")
                     
@@ -203,10 +201,47 @@ class AssistantAgent:
                     # Debug: Print what we're sending
                     print(f"DEBUG: Input data: {input_data}")
                     
-                    # Use the agent directly with messages format
+                    # Use streaming to capture tool calls
+                    for chunk in self.agent.stream(input_data):
+                        print(f"DEBUG: Stream chunk: {chunk}")
+                        
+                        # Handle different chunk types
+                        for key, value in chunk.items():
+                            if key == 'model' and 'messages' in value:
+                                # This is a model response chunk
+                                for message in value['messages']:
+                                    if hasattr(message, 'tool_calls') and message.tool_calls:
+                                        # This is a tool call message
+                                        for tool_call in message.tool_calls:
+                                            queue.put(('tool_call', {
+                                                'tool_name': tool_call['name'],
+                                                'tool_args': tool_call['args'],
+                                                'tool_id': tool_call['id']
+                                            }))
+                                    elif hasattr(message, 'content') and message.content:
+                                        # This is a regular message
+                                        if isinstance(message.content, list):
+                                            # Handle structured content
+                                            for content_item in message.content:
+                                                if isinstance(content_item, dict) and content_item.get('type') == 'text':
+                                                    queue.put(('message', content_item['text']))
+                                        else:
+                                            queue.put(('message', message.content))
+                            
+                            elif key == 'tools' and 'messages' in value:
+                                # This is a tool result chunk
+                                for message in value['messages']:
+                                    if hasattr(message, 'content'):
+                                        queue.put(('tool_result', {
+                                            'tool_id': getattr(message, 'tool_call_id', 'unknown'),
+                                            'result': message.content
+                                        }))
+                    
+                    # Get the final result
                     result = self.agent.invoke(input_data)
-                    print(f"DEBUG: Result: {result}")
+                    print(f"DEBUG: Final result: {result}")
                     queue.put(('result', result))
+                    
                 except Exception as e:
                     print(f"DEBUG: Error: {e}")
                     queue.put(('error', e))
@@ -232,7 +267,33 @@ class AssistantAgent:
                         }
                         break
                     
-                    if isinstance(item, tuple) and item[0] == 'result':
+                    elif isinstance(item, tuple) and item[0] == 'tool_call':
+                        # Yield tool call information
+                        tool_data = item[1]
+                        yield {
+                            'type': 'tool_call',
+                            'tool_name': tool_data['tool_name'],
+                            'tool_args': tool_data['tool_args'],
+                            'tool_id': tool_data['tool_id']
+                        }
+                    
+                    elif isinstance(item, tuple) and item[0] == 'tool_result':
+                        # Yield tool result information
+                        result_data = item[1]
+                        yield {
+                            'type': 'tool_result',
+                            'tool_id': result_data['tool_id'],
+                            'result': result_data['result']
+                        }
+                    
+                    elif isinstance(item, tuple) and item[0] == 'message':
+                        # Yield intermediate message content
+                        yield {
+                            'type': 'message',
+                            'content': item[1]
+                        }
+                    
+                    elif isinstance(item, tuple) and item[0] == 'result':
                         result = item[1]
                         # Extract the final response from the result
                         if 'output' in result:
@@ -278,92 +339,59 @@ class AssistantAgent:
                 'message': f"Error generating response: {str(e)}"
             }
 
-def main():
-    print("🤖 Initializing FreeResponseGraderAgent...")
-    grader = AssistantAgent()
+async def test_streaming():
+    """Test the enhanced streaming with tool call visibility"""
+    print("🤖 Initializing AssistantAgent...")
+    agent = AssistantAgent()
     print("✅ AssistantAgent initialized successfully")
     
-    # Test case 1: Math problem
     print("\n" + "="*60)
-    print("📝 Test Case 1: Math Problem")
+    print("🔍 Testing Enhanced Streaming with Tool Calls")
     print("="*60)
     
-    math_question = FR(
-        type="fr",
-        answer="x = -2 or x = -3",
-        points=5,
-        rubric="Student should solve the quadratic equation correctly. Award points for: correct factoring (2 points), correct solutions (2 points), clear explanation (1 point)."
-    )
+    # Test query that should trigger tool calls
+    test_query = "What is the derivative of x^2 + 3x + 5? Please verify your answer using Wolfram Alpha."
     
-    student_math_answer = "I can factor this as (x + 2)(x + 3) = 0, so x = -2 or x = -3"
-    
-    print(f"Question: Solve x^2 + 5x + 6 = 0")
-    print(f"Student Answer: {student_math_answer}")
-    print(f"Max Points: {math_question.points}")
+    print(f"Query: {test_query}")
+    print("\n📡 Streaming Response:")
+    print("-" * 40)
     
     try:
-        math_grade = grader.grade_free_response(math_question, student_math_answer)
-        print(f"\n📊 Math Grade Result:")
-        print(f"   Score: {math_grade.score}/{math_question.points}")
-        print(f"   Explanation: {math_grade.explanation}")
+        async for event in agent.generate_response(test_query, "test_thread"):
+            if event['type'] == 'tool_call':
+                print(f"🔧 Tool Call: {event['tool_name']}")
+                print(f"   Args: {event['tool_args']}")
+                print(f"   ID: {event['tool_id']}")
+                print()
+                
+            elif event['type'] == 'tool_result':
+                print(f"📊 Tool Result (ID: {event['tool_id']}):")
+                print(f"   {event['result'][:200]}{'...' if len(event['result']) > 200 else ''}")
+                print()
+                
+            elif event['type'] == 'message':
+                print(f"💬 Message: {event['content'][:100]}{'...' if len(event['content']) > 100 else ''}")
+                print()
+                
+            elif event['type'] == 'final_response':
+                print(f"✅ Final Response:")
+                print(f"   {event['content']}")
+                print()
+                
+            elif event['type'] == 'error':
+                print(f"❌ Error: {event['message']}")
+                print()
+                
     except Exception as e:
-        print(f"❌ Error grading math problem: {e}")
+        print(f"❌ Error during streaming test: {e}")
     
-    # Test case 2: Biology problem
-    print("\n" + "="*60)
-    print("📝 Test Case 2: Biology Problem")
     print("="*60)
-    
-    bio_question = FR(
-        type="fr",
-        answer="DNA polymerase is the primary enzyme responsible for DNA replication. It synthesizes new DNA strands by adding nucleotides to the growing strand in the 5' to 3' direction.",
-        points=4,
-        rubric="Student should identify DNA polymerase (2 points) and explain its function in DNA replication (2 points). Partial credit for mentioning other relevant enzymes."
-    )
-    
-    student_bio_answer = "DNA polymerase is the main enzyme for DNA replication. It adds nucleotides to make new DNA strands."
-    
-    print(f"Question: What is the primary enzyme responsible for DNA replication?")
-    print(f"Student Answer: {student_bio_answer}")
-    print(f"Max Points: {bio_question.points}")
-    
-    try:
-        bio_grade = grader.grade_free_response(bio_question, student_bio_answer)
-        print(f"\n📊 Biology Grade Result:")
-        print(f"   Score: {bio_grade.score}/{bio_question.points}")
-        print(f"   Explanation: {bio_grade.explanation}")
-    except Exception as e:
-        print(f"❌ Error grading biology problem: {e}")
-    
-    # Test case 3: Physics problem
-    print("\n" + "="*60)
-    print("📝 Test Case 3: Physics Problem")
+    print("🎉 Streaming test completed!")
     print("="*60)
-    
-    physics_question = FR(
-        type="fr",
-        answer="The speed of light in vacuum is approximately 3.00 × 10^8 m/s or 299,792,458 m/s. This is a fundamental constant in physics.",
-        points=3,
-        rubric="Student should provide the correct numerical value (2 points) and mention it's a fundamental constant (1 point)."
-    )
-    
-    student_physics_answer = "The speed of light is about 3 × 10^8 meters per second"
-    
-    print(f"Question: What is the speed of light in vacuum?")
-    print(f"Student Answer: {student_physics_answer}")
-    print(f"Max Points: {physics_question.points}")
-    
-    try:
-        physics_grade = grader.grade_free_response(physics_question, student_physics_answer)
-        print(f"\n📊 Physics Grade Result:")
-        print(f"   Score: {physics_grade.score}/{physics_question.points}")
-        print(f"   Explanation: {physics_grade.explanation}")
-    except Exception as e:
-        print(f"❌ Error grading physics problem: {e}")
-    
-    print("\n" + "="*60)
-    print("🎉 FreeResponseGraderAgent test completed!")
-    print("="*60)
+
+def main():
+    import asyncio
+    asyncio.run(test_streaming())
 
 if __name__ == "__main__":
     main()

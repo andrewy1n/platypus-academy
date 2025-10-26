@@ -58,21 +58,38 @@ async def parse_step(data: PipelineData):
         
         parser_agent = ParserAgent()
         
-        total = len(data.search_results)
-        for i, result in enumerate(data.search_results, 1):
-            yield {
-                'type': 'progress',
-                'message': f'Processing URL {i}/{total}: {result.title}',
-                'current': i,
-                'total': total
-            }
+        parsed_results = None
+        async for event in parser_agent.process_urls_parallel_with_progress(data.search_results, max_workers=4):
+            if event['type'] == 'progress':
+                yield {
+                    'type': 'progress',
+                    'message': event['message'],
+                    'step': event.get('step', 'processing'),
+                    'url': event.get('url'),
+                    'current': event.get('current'),
+                    'total': event.get('total'),
+                    'chunks_count': event.get('chunks_count'),
+                    'index_name': event.get('index_name'),
+                    'max_workers': event.get('max_workers'),
+                    'total_questions': event.get('total_questions')
+                }
+            elif event['type'] == 'error':
+                yield {
+                    'type': 'error',
+                    'message': event['message'],
+                    'url': event.get('url')
+                }
+            elif event['type'] == 'final_response':
+                parsed_results = event['data']
         
-        parsed_results = parser_agent.process_urls_parallel(data.search_results, max_workers=4)
-        
-        data.parsed_results = parsed_results
-        data.current_step = "parse_completed"
-        
-        yield {'type': 'complete', 'data': data}
+        if parsed_results is not None:
+            data.parsed_results = parsed_results
+            data.current_step = "parse_completed"
+            yield {'type': 'complete', 'data': data}
+        else:
+            data.error_message = "No parsed results generated"
+            data.current_step = "parse_failed"
+            yield {'type': 'complete', 'data': data}
         
     except Exception as e:
         data.error_message = f"Parse step failed: {str(e)}"

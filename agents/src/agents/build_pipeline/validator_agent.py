@@ -14,7 +14,6 @@ from agents.models.search import SearchRequest
 load_dotenv()
 
 
-
 @tool
 def query_wolfram_alpha_tool(query: str) -> str:
     """

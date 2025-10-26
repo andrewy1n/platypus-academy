@@ -21,12 +21,21 @@ async def stream_assistant_execution(request: AssistantRequest, conversation_id:
     try:
         yield f"data: {json.dumps({'status': 'started', 'step': 'assistant', 'message': 'Assistant: Starting to process your question...'})}\n\n"
         
+        query = request.user_question
+        if request.question_id:
+            question_data = db_client.get_question(request.question_id)
+            if question_data:
+                query += f"\n\nQuestion: {question_data.get('question', '')}"
+        if request.session_id:
+            session_data = db_client.get_session(request.session_id)
+            if session_data:
+                query += f"\n\nSession: {session_data.get('session', '')}"
         try:
             async with httpx.AsyncClient(timeout=300.0) as client:
                 async with client.stream(
                     "POST", 
                     f"{AGENTS_BASE}/agents/assistant", 
-                    json=request.model_dump(),
+                    json={"query": query, "thread_id": conversation_id},
                     headers={"Accept": "text/event-stream"}
                 ) as response:
                     if response.is_error:
@@ -103,22 +112,6 @@ async def stream_assistant_execution(request: AssistantRequest, conversation_id:
 
 @router.post("/")
 async def assistant(request: AssistantRequest):
-    # If question_id is provided, fetch and include question data
-    if request.question_id:
-        question_data = db_client.get_question(request.question_id)
-        if question_data:
-            request.question_data = question_data
-    
-    # If session_id is provided, fetch and include session data with questions
-    if request.session_id:
-        session_data = db_client.get_session(request.session_id)
-        if session_data:
-            questions = db_client.get_questions_by_session(request.session_id)
-            request.session_data = {
-                **session_data,
-                "questions": questions
-            }
-    
     conversation_id = str(uuid.uuid4())
     return StreamingResponse(
         stream_assistant_execution(request, conversation_id),

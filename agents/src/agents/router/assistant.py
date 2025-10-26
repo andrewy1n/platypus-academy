@@ -17,7 +17,11 @@ async def stream_assistant_execution(request: AssistantRequest):
         try:
             async for event in assistant.generate_response(request.query, request.thread_id):
                 if event['type'] == 'tool_call':
-                    yield f"data: {json.dumps({'status': 'tool_call', 'step': 'assistant', 'tool': event['tool'], 'args': event['args'], 'tool_id': event['id']})}\n\n"
+                    yield f"data: {json.dumps({'status': 'tool_call', 'step': 'assistant', 'tool': event['tool_name'], 'args': event['tool_args'], 'tool_id': event['tool_id']})}\n\n"
+                elif event['type'] == 'tool_result':
+                    yield f"data: {json.dumps({'status': 'tool_result', 'step': 'assistant', 'tool_id': event['tool_id'], 'result': event['result']})}\n\n"
+                elif event['type'] == 'message':
+                    yield f"data: {json.dumps({'status': 'message', 'step': 'assistant', 'content': event['content']})}\n\n"
                 elif event['type'] == 'final_response':
                     yield f"data: {json.dumps({'status': 'completed', 'step': 'assistant', 'message': 'Response generated successfully', 'data': event['content']})}\n\n"
                 elif event['type'] == 'error':

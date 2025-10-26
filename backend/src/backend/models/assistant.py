@@ -12,8 +12,6 @@ class AssistantRequest(BaseModel):
     session_id: Optional[str] = None
     user_question: str
     user_id: Optional[str] = None
-    question_data: Optional[dict] = None
-    session_data: Optional[dict] = None
 
 class AssistantResponse(BaseModel):
     message: str

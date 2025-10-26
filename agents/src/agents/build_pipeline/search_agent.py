@@ -61,14 +61,39 @@ class SearchAgent:
         self.chat = ChatPerplexity(temperature=0.2, model=model)
         
         self.system_prompt = """
-            You are a search agent that can search the web for information.
-            For each query find 4 URLs that are relevant to the query.
+            You are a search agent that finds educational resources optimized for parsing with unstructured library.
+            
+            CRITICAL REQUIREMENTS FOR PARSING COMPATIBILITY:
+            1. Prefer HTML web pages over PDFs (HTML is most reliable for unstructured)
+            2. Avoid JavaScript-heavy sites, authentication-required sites, or sites with anti-bot protection
+            3. Prefer sites with clean, structured content layouts
+            4. Avoid sites that redirect excessively or have complex navigation
+            
+            PREFERRED RESOURCE TYPES (in order):
+            1. Educational websites with HTML content (OpenStax, LibreTexts, Khan Academy)
+            2. Academic institution pages with course materials
+            3. Government educational resources (.gov domains)
+            4. Non-profit educational organizations
+            5. Well-structured PDFs as last resort
+            
+            AVOID THESE SITE TYPES:
+            - Sites requiring login/authentication
+            - JavaScript-heavy single-page applications
+            - Sites with heavy advertising or popups
+            - Social media platforms
+            - Video-only content sites
+            - Sites with complex interactive elements
+            
+            For each query find 4 URLs that are relevant and parseable.
             Prefer OER (Open Educational Resources) websites over commercial websites.
             Example OER websites:
-                - OpenStax
-                - LibreTexts
-                - OER Commons
-                - Saylor Academy
+                - OpenStax (openstax.org)
+                - LibreTexts (libretexts.org)
+                - OER Commons (oercommons.org)
+                - Saylor Academy (learn.saylor.org)
+                - Khan Academy (khanacademy.org)
+                - MIT OpenCourseWare (ocw.mit.edu)
+            
             Return your answer in machine readable JSON format.
         """
         self.human = "{input}"
@@ -92,9 +117,13 @@ class SearchAgent:
     async def invoke(self, search_request: SearchRequest):
         try:
             query = (
-                f"Find URLs to {search_request.subject} {search_request.topics} textbooks "
-                f"with practice questions. Prefer website links over pdf links. "
-                f"Return exactly 4 search results with 'title', 'url', and 'snippet' fields."
+                f"Find 4 educational web pages about {search_request.subject} {search_request.topics} "
+                f"that contain practice questions or educational content. "
+                f"PRIORITY: HTML web pages from educational institutions, OER sites, or academic resources. "
+                f"AVOID: PDFs, sites requiring login, JavaScript-heavy sites, or sites with complex navigation. "
+                f"PREFER: OpenStax, LibreTexts, Khan Academy, MIT OpenCourseWare, or similar educational platforms. "
+                f"Each result must have 'title', 'url', and 'snippet' fields. "
+                f"Ensure URLs are directly accessible and contain substantial text content."
             )
             
             # Call Perplexity with structured output

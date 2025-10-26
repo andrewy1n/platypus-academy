@@ -32,7 +32,7 @@ class ParserAgent:
             session.max_redirects = 5  # Limit redirects
             
             elements = partition(url=str(url), request_timeout=30, max_redirects=5)
-            chunks = chunk_by_title(elements)
+            chunks = chunk_by_title(elements, max_characters=500, overlap=100)
             return chunks
         except requests.exceptions.TooManyRedirects:
             print(f"Too many redirects for URL: {url}")
@@ -53,11 +53,11 @@ class ParserAgent:
         index_name = index_name[:255]
         return index_name
     
-    def build_elasticsearch_index(self, chunks: list[Element], index_name: str) -> bool:
+    def build_elasticsearch_index(self, chunks: list[Element]) -> bool:
         def prepare_documents(chunks):
             for idx, chunk in enumerate(chunks):
                 doc = {
-                    "_index": index_name,
+                    "_index": "educational_chunks",
                     "_id": f"chunk_{idx}",
                     "_source": {
                         "text": chunk.text,
@@ -73,7 +73,7 @@ class ParserAgent:
                 }
                 yield doc
 
-        print(f"Indexing {len(chunks)} chunks into {index_name}")
+        print(f"Indexing {len(chunks)} chunks into educational_chunks")
         try:
             success, failed = bulk(self.es_client, prepare_documents(chunks))
             print(f"Successfully indexed: {success} documents")
@@ -126,7 +126,7 @@ class ParserAgent:
             
             print("Building Elasticsearch index...")
             index_name = self.create_elasticsearch_index_name(result.title)
-            if self.build_elasticsearch_index(chunks, index_name):
+            if self.build_elasticsearch_index(chunks):
                 print("Elasticsearch index built successfully")
             else:
                 print("Elasticsearch index build failed")
@@ -137,6 +137,8 @@ class ParserAgent:
                 Return the JSON of a maximum of 5 questions and answers from the index (include any mentioned images URLs): {index_name}
                 Website title: {result.title}
                 Website snippet: {result.snippet}
+                Index name: educational_chunks
+                Website URL: {result.url}
 
                 if there are no questions, return an empty list.
             """
@@ -190,6 +192,171 @@ class ParserAgent:
                     print(f"❌ Exception processing {result.title}: {e}")
         
         return practice_questions
+    
+    async def process_single_url_with_progress(self, result: SearchResult):
+        """
+        Process a single URL with detailed progress events
+        """
+        try:
+            yield {
+                'type': 'progress',
+                'message': f'Starting to process: {result.title}',
+                'url': str(result.url),
+                'step': 'start'
+            }
+            
+            yield {
+                'type': 'progress',
+                'message': f'Partitioning and chunking content from {result.title}...',
+                'url': str(result.url),
+                'step': 'partitioning'
+            }
+            
+            chunks = self.partition_and_chunk(result.url)
+            
+            if len(chunks) == 0:
+                yield {
+                    'type': 'error',
+                    'message': f'No chunks found for {result.title}',
+                    'url': str(result.url)
+                }
+                return
+            
+            yield {
+                'type': 'progress',
+                'message': f'Successfully chunked {len(chunks)} pieces from {result.title}',
+                'url': str(result.url),
+                'step': 'chunked',
+                'chunks_count': len(chunks)
+            }
+            
+            yield {
+                'type': 'progress',
+                'message': f'Building Elasticsearch index for {result.title}...',
+                'url': str(result.url),
+                'step': 'indexing'
+            }
+            
+            index_name = self.create_elasticsearch_index_name(result.title)
+            
+            if self.build_elasticsearch_index(chunks):
+                yield {
+                    'type': 'progress',
+                    'message': f'Elasticsearch index "{index_name}" built successfully',
+                    'url': str(result.url),
+                    'step': 'indexed',
+                    'index_name': index_name
+                }
+            else:
+                yield {
+                    'type': 'error',
+                    'message': f'Failed to build Elasticsearch index for {result.title}',
+                    'url': str(result.url)
+                }
+                return
+            
+            yield {
+                'type': 'progress',
+                'message': f'Querying Elasticsearch agent for questions in {result.title}...',
+                'url': str(result.url),
+                'step': 'agent_query'
+            }
+            
+            prompt = f"""
+                Return the JSON of a maximum of 5 questions and answers from the index (include any mentioned images URLs): {index_name}
+                Website title: {result.title}
+                Website snippet: {result.snippet}
+
+                if there are no questions, return an empty list.
+            """
+            
+            res = self.query_elastic_agent(prompt, "question_parser")
+            
+            if res:
+                yield {
+                    'type': 'progress',
+                    'message': f'Successfully extracted questions from {result.title}',
+                    'url': str(result.url),
+                    'step': 'completed'
+                }
+                
+                yield {
+                    'type': 'success',
+                    'data': {
+                        "success": True, 
+                        "result": result, 
+                        "index_name": index_name,
+                        "chunks_count": len(chunks),
+                        "agent_response": res["response"]["message"]
+                    }
+                }
+            else:
+                yield {
+                    'type': 'error',
+                    'message': f'Elasticsearch agent failed to extract questions from {result.title}',
+                    'url': str(result.url)
+                }
+                
+        except Exception as e:
+            yield {
+                'type': 'error',
+                'message': f'Error processing {result.title}: {str(e)}',
+                'url': str(result.url)
+            }
+
+    async def process_urls_parallel_with_progress(self, search_results: list[SearchResult], max_workers: int | None = None):
+        """
+        Process URLs in parallel with detailed progress events
+        """
+        yield {
+            'type': 'progress',
+            'message': f'Starting parallel processing of {len(search_results)} URLs...',
+            'step': 'start_parallel'
+        }
+        
+        # Adaptive concurrency: IO-bound workload (HTTP + ES)
+        if max_workers is None:
+            cpu = os.cpu_count() or 4
+            max_workers = min(16, max(4, cpu * 2, len(search_results)))
+        else:
+            max_workers = min(max_workers, max(1, len(search_results)))
+        
+        yield {
+            'type': 'progress',
+            'message': f'Using {max_workers} parallel workers for processing',
+            'step': 'workers_configured',
+            'max_workers': max_workers
+        }
+        
+        practice_questions = []
+        
+        # Process each URL with progress tracking
+        for i, result in enumerate(search_results, 1):
+            yield {
+                'type': 'progress',
+                'message': f'Processing URL {i}/{len(search_results)}: {result.title}',
+                'step': 'url_start',
+                'current': i,
+                'total': len(search_results),
+                'url': str(result.url)
+            }
+            
+            async for event in self.process_single_url_with_progress(result):
+                if event['type'] == 'success':
+                    practice_questions.append(event['data']['agent_response'])
+                yield event
+        
+        yield {
+            'type': 'progress',
+            'message': f'Completed processing all {len(search_results)} URLs. Generated {len(practice_questions)} question sets.',
+            'step': 'all_completed',
+            'total_questions': len(practice_questions)
+        }
+        
+        yield {
+            'type': 'final_response',
+            'data': practice_questions
+        }
     
     def print_summary(self, practice_questions: list):
         print("\n" + "="*50)
