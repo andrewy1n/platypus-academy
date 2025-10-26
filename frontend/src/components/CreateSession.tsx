@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { sessionService } from '../services/sessionService';
 import './CreateSession.css';
 
 interface CreateSessionProps {
   onClose?: () => void;
-  onSessionCreated?: (sessionData: any) => void;
+  onSessionCreated?: (sessionId: string) => void;
 }
 
 export default function CreateSession({ onClose, onSessionCreated }: CreateSessionProps) {
+  const { user } = useAuth();
   // Session state
   const [sessionType, setSessionType] = useState<'practice' | 'test' | null>(null);
   const [questionAmount, setQuestionAmount] = useState<'10-20' | '20-30' | '30+' | null>(null);
@@ -27,24 +30,50 @@ export default function CreateSession({ onClose, onSessionCreated }: CreateSessi
   };
 
   const handleGenerate = async () => {
-    setIsGenerating(true);
-    // This will be connected to the backend when ready
-    const sessionData = {
-      type: sessionType,
-      questionAmount,
-      subject,
-      topics: selectedTopics,
-      otherTopics
-    };
-    console.log('Session data to send:', sessionData);
-    // TODO: Call backend API here
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsGenerating(false);
+    if (!sessionType || !questionAmount || !subject) return;
     
-    // Call the session created callback
-    if (onSessionCreated) {
-      onSessionCreated(sessionData);
+    setIsGenerating(true);
+    
+    try {
+      // Normalize subject
+      const normalizeSubject = (s: string) => s === 'cs' ? 'computer science' : s;
+      
+      // Map question amount to range
+      const rangeMap: { [key: string]: [number, number] } = {
+        '10-20': [10, 20],
+        '20-30': [20, 30],
+        '30+': [30, 50]
+      };
+      
+      // Build topics array with other topics if provided
+      const topics = selectedTopics;
+      if (otherTopics.trim()) {
+        topics.push(otherTopics.trim());
+      }
+      
+      // Build search request
+      const searchRequest = {
+        subject: normalizeSubject(subject),
+        topics,
+        num_questions_range: rangeMap[questionAmount],
+        mode: sessionType,
+        user_id: user?.id
+      };
+      
+      // Call backend with progress callback
+      const sessionId = await sessionService.createSession(searchRequest, (data) => {
+        // Progress updates can be shown here if needed
+        console.log('Session creation progress:', data);
+      });
+      
+      if (onSessionCreated) {
+        onSessionCreated(sessionId);
+      }
+    } catch (error) {
+      console.error('Error creating session:', error);
+      alert('Failed to create session. Please try again.');
+    } finally {
+      setIsGenerating(false);
     }
   };
 

@@ -1,10 +1,17 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useAuth } from '../../contexts/AuthContext'
+import { userService } from '../../services/userService'
+import { sessionService } from '../../services/sessionService'
 import SessionsTab from '../../components/SessionsTab'
 
 export default function SessionsPage() {
   const router = useRouter()
+  const { user } = useAuth()
+  const [sessionData, setSessionData] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const handleResumeSession = (sessionId: string) => {
     // Navigate to the practice session
@@ -15,6 +22,59 @@ export default function SessionsPage() {
     // For now, just log - could open a modal or navigate to preview
     console.log('Preview session:', sessionId)
   }
+
+  // Load user sessions and their data
+  useEffect(() => {
+    const loadSessions = async () => {
+      if (user?.session_ids && user.session_ids.length > 0) {
+        try {
+          // Use session_ids directly from user object
+          const sessionPromises = user.session_ids.map(async (id: string) => {
+            try {
+              const session = await sessionService.getSession(id)
+              return { id, ...session }
+            } catch (error) {
+              console.error(`Error loading session ${id}:`, error)
+              return null
+            }
+          })
+          
+          const sessions = (await Promise.all(sessionPromises)).filter(Boolean)
+          setSessionData(sessions as any[])
+        } catch (error) {
+          console.error('Error loading sessions:', error)
+        } finally {
+          setIsLoading(false)
+        }
+      } else {
+        setIsLoading(false)
+      }
+    }
+    
+    loadSessions()
+  }, [user])
+
+  // Map session data to SessionsTab format
+  const sessions = sessionData.map(session => ({
+    id: session.id,
+    title: `${session.subject} Practice`,
+    subject: session.subject,
+    status: session.status || 'in-progress' as const,
+    progress: session.num_questions > 0 
+      ? Math.round((session.num_questions_answered / session.num_questions) * 100) 
+      : 0,
+    totalQuestions: session.num_questions || 0,
+    completedQuestions: session.num_questions_answered || 0,
+    questions: (session.questions || []).map((qId: string, idx: number) => ({
+      id: qId,
+      content: `Question ${idx + 1}`,
+      type: 'problem-solving' as const,
+      difficulty: 'medium' as const,
+      isCompleted: idx < (session.num_questions_answered || 0)
+    })),
+    createdAt: new Date(session.created_at),
+    lastAccessed: new Date()
+  }))
 
   return (
     <div style={{ 
@@ -63,6 +123,7 @@ export default function SessionsPage() {
 
         {/* Sessions Tab with proper styling */}
         <SessionsTab 
+          sessions={sessions}
           onResumeSession={handleResumeSession}
           onPreviewSession={handlePreviewSession}
         />

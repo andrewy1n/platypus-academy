@@ -5,6 +5,9 @@ import { useState, useEffect } from 'react'
 import PracticeWithChat from '../../../components/PracticeWithChat'
 import QuestionRenderer, { Question } from '../../../components/QuestionRenderer'
 import EndSummary from '../../../components/EndSummary'
+import { sessionService } from '../../../services/sessionService'
+import { questionService } from '../../../services/questionService'
+import { gradingService } from '../../../services/gradingService'
 import './page.css'
 
 interface PracticePageProps {
@@ -22,75 +25,117 @@ export default function PracticePage({ params }: PracticePageProps) {
   const [isCompleted, setIsCompleted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Mock questions data - replace with actual API call
+  // Load questions from backend
   useEffect(() => {
-    const mockQuestions: Question[] = [
-      {
-        id: '1',
-        problemNumber: 1,
-        questionText: 'What is the derivative of x²?',
-        questionType: 'mcq',
-        correctAnswer: '2x',
-        choices: ['2x', 'x', '2', 'x²'],
-        explanation: 'Using the power rule, the derivative of x² is 2x.'
-      },
-      {
-        id: '2', 
-        problemNumber: 2,
-        questionText: 'The derivative of a constant is zero.',
-        questionType: 'tf',
-        correctAnswer: true,
-        explanation: 'The derivative of any constant is indeed zero.'
-      },
-      {
-        id: '3',
-        problemNumber: 3,
-        questionText: 'What is the area of a circle with radius 5?',
-        questionType: 'numeric',
-        correctAnswer: 78.54,
-        explanation: 'The area of a circle is πr². With radius 5, the area is π(5)² = 25π ≈ 78.54.'
-      },
-      {
-        id: '4',
-        problemNumber: 4,
-        questionText: 'The integral of 2x with respect to x is ____.',
-        questionType: 'fib',
-        correctAnswer: 'x² + C',
-        explanation: 'The integral of 2x is x² + C, where C is the constant of integration.'
-      },
-      {
-        id: '5',
-        problemNumber: 5,
-        questionText: 'Match the following derivatives:',
-        questionType: 'matching',
-        correctAnswer: { 'x²': '2x', 'sin(x)': 'cos(x)', 'e^x': 'e^x' },
-        left: ['x²', 'sin(x)', 'e^x'],
-        right: ['2x', 'cos(x)', 'e^x'],
-        explanation: 'These are fundamental derivative rules in calculus.'
-      },
-      {
-        id: '6',
-        problemNumber: 6,
-        questionText: 'Order the following steps to solve 2x + 3 = 7:',
-        questionType: 'ordering',
-        correctAnswer: ['Subtract 3 from both sides', 'Divide by 2', 'x = 2'],
-        choices: ['Subtract 3 from both sides', 'Divide by 2', 'x = 2'],
-        explanation: 'First subtract 3, then divide by 2 to isolate x.'
-      },
-      {
-        id: '7',
-        problemNumber: 7,
-        questionText: 'Explain the chain rule in calculus and provide an example.',
-        questionType: 'fr',
-        correctAnswer: 'The chain rule states that the derivative of a composite function is the product of the derivatives of the outer and inner functions.',
-        points: 10,
-        explanation: 'The chain rule is fundamental for finding derivatives of composite functions.'
+    const loadQuestions = async () => {
+      try {
+        const response = await sessionService.getSessionQuestions(sessionId)
+        
+        // Handle different response structures
+        const backendQuestions = Array.isArray(response) ? response : response.questions || []
+        
+        if (!Array.isArray(backendQuestions)) {
+          console.error('Expected array but got:', backendQuestions)
+          setQuestions([])
+          setIsLoading(false)
+          return
+        }
+        
+        // Map backend questions to UI format
+        const mappedQuestions: Question[] = backendQuestions.map((q: any, index: number) => {
+          const typeMap: { [key: string]: string } = { 
+            short_answer: 'fr' 
+          };
+          
+          const questionType = typeMap[q.question.data.type] || q.question.data.type;
+          
+                     // Extract question data based on type
+           let correctAnswer: any = null;
+           let choices: string[] | undefined;
+           let left: string[] | undefined;
+           let right: string[] | undefined;
+           let points: number | undefined;
+           let rubric: string | undefined;
+           let imageUrl: string | undefined;
+           
+           // Handle case where data might be in different structure
+           const questionData = q.question?.data || q.data || q;
+           const questionText = q.question?.text || q.text || '';
+           
+           if (!questionData) {
+             console.warn('Missing question data:', q)
+             return {
+               id: q.id || `q-${index}`,
+               problemNumber: index + 1,
+               questionText: questionText || 'Question text not available',
+               questionType: 'mcq' as any,
+               correctAnswer: '',
+               choices: []
+             }
+           }
+           
+           switch (questionData.type) {
+                         case 'mcq':
+               correctAnswer = questionData.answer;
+               choices = questionData.choices;
+               break;
+             case 'tf':
+               correctAnswer = questionData.answer;
+               break;
+             case 'numeric':
+               correctAnswer = questionData.answer;
+               break;
+             case 'fib':
+               correctAnswer = questionData.answer;
+               break;
+             case 'matching':
+               correctAnswer = questionData.answer;
+               left = questionData.left;
+               right = questionData.right;
+               break;
+             case 'ordering':
+               correctAnswer = questionData.answer;
+               choices = questionData.choices;
+               break;
+             case 'short_answer':
+             case 'fr':
+               points = q.points || questionData.points;
+               rubric = questionData.rubric;
+               correctAnswer = questionData.answer;
+               break;
+          }
+          
+          // Get image URL if available
+          if (q.question?.image_url) {
+            imageUrl = q.question.image_url;
+          }
+          
+          return {
+            id: q.id,
+            problemNumber: index + 1,
+            questionText: questionText,
+            questionType: questionType as any,
+            correctAnswer,
+            choices,
+            left,
+            right,
+            points,
+            rubric,
+            imageUrl,
+            explanation: questionData.rubric || undefined
+          };
+        });
+        
+        setQuestions(mappedQuestions)
+        setIsLoading(false)
+      } catch (error) {
+        console.error('Error loading questions:', error)
+        setIsLoading(false)
       }
-    ]
+    }
     
-    setQuestions(mockQuestions)
-    setIsLoading(false)
-  }, [])
+    loadQuestions()
+  }, [sessionId])
 
   const handleAnswerChange = (answer: any) => {
     const currentQuestion = questions[currentQuestionIndex]
@@ -102,7 +147,27 @@ export default function PracticePage({ params }: PracticePageProps) {
     }
   }
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
+    const currentQuestion = questions[currentQuestionIndex]
+    const currentAnswer = currentQuestion ? userAnswers[currentQuestion.id!] : undefined
+    
+    // Save answer before advancing
+    if (currentQuestion && currentAnswer !== undefined) {
+      try {
+        await questionService.saveAnswer(currentQuestion.id!, { answer: currentAnswer })
+        
+        // If it's a free response question, trigger grading
+        if (currentQuestion.questionType === 'fr') {
+          await gradingService.gradeFreeResponse(currentQuestion.id!, (data) => {
+            // Progress updates from grading can be shown here if needed
+            console.log('Grading progress:', data)
+          })
+        }
+      } catch (error) {
+        console.error('Error saving/grading answer:', error)
+      }
+    }
+    
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1)
     } else {

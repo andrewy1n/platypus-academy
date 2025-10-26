@@ -13,10 +13,9 @@ export default function HomePageRoute() {
     setShowCreateSession(true)
   }
 
-  const handleCreateSession = (sessionData: any) => {
-    // Navigate to practice session with the session data
-    const sessionId = `session-${Date.now()}`
-    router.push(`/practice/${sessionId}?type=${sessionData.type}&subject=${sessionData.subject}`)
+  const handleCreateSession = (sessionId: string) => {
+    // Navigate to practice session with the session ID
+    router.push(`/practice/${sessionId}`)
   }
 
   const handlePreviousSessions = () => {
